@@ -1,5 +1,8 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { useAuth } from './contexts/AuthContext';
+import { isSupabaseConfigured } from './lib/supabase';
 import Sidebar from './components/Sidebar.jsx';
+import Login from './pages/Login.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import Grocery from './pages/Grocery.jsx';
 import Events from './pages/Events.jsx';
@@ -12,6 +15,20 @@ import Cricket from './pages/Cricket.jsx';
 import Expenses from './pages/Expenses.jsx';
 
 export default function App() {
+  const { user, loading } = useAuth() ?? {};
+
+  if (loading) {
+    return (
+      <div className="flex h-screen items-center justify-center text-slate-400 text-sm">
+        Loading…
+      </div>
+    );
+  }
+
+  if (isSupabaseConfigured && !user) {
+    return <Login />;
+  }
+
   return (
     <div className="flex h-full">
       <Sidebar />

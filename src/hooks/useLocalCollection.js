@@ -1,57 +1,147 @@
 import { useCallback, useEffect, useState } from 'react';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
 
-/**
- * A tiny data layer that mimics what Supabase will give us later.
- * Reads/writes a list of records to localStorage under a namespaced key.
- *
- * When we swap to Supabase, replace the internals with calls to
- * supabase.from(table).select/insert/update/delete and keep the same
- * shape: { items, add, update, remove, replaceAll, loading }.
- */
-export default function useLocalCollection(key, seed = []) {
+// Collection keys that differ from their Supabase table names
+const TABLE_MAP = { keyDates: 'key_dates' };
+const toTable = (key) => TABLE_MAP[key] ?? key;
+
+// ── localStorage fallback ─────────────────────────────────────────────────────
+function useLocalStorageImpl(key, seed) {
   const storageKey = `life-manager:${key}`;
   const [items, setItems] = useState(() => {
     try {
       const raw = localStorage.getItem(storageKey);
       if (raw) return JSON.parse(raw);
-    } catch (e) {
-      console.warn('Failed to read localStorage for', storageKey, e);
-    }
+    } catch { /* ignore */ }
     return seed;
   });
-  const [loading] = useState(false);
 
   useEffect(() => {
-    try {
-      localStorage.setItem(storageKey, JSON.stringify(items));
-    } catch (e) {
-      console.warn('Failed to write localStorage for', storageKey, e);
-    }
+    try { localStorage.setItem(storageKey, JSON.stringify(items)); }
+    catch { /* ignore */ }
   }, [storageKey, items]);
 
   const add = useCallback((record) => {
-    const withId = {
+    const item = {
       id: record.id ?? crypto.randomUUID(),
       created_at: record.created_at ?? new Date().toISOString(),
       ...record,
     };
-    setItems((prev) => [withId, ...prev]);
-    return withId;
+    setItems((p) => [item, ...p]);
+    return item;
   }, []);
 
   const update = useCallback((id, patch) => {
-    setItems((prev) =>
-      prev.map((it) => (it.id === id ? { ...it, ...patch } : it))
-    );
+    setItems((p) => p.map((it) => (it.id === id ? { ...it, ...patch } : it)));
   }, []);
 
   const remove = useCallback((id) => {
-    setItems((prev) => prev.filter((it) => it.id !== id));
+    setItems((p) => p.filter((it) => it.id !== id));
   }, []);
 
-  const replaceAll = useCallback((nextItems) => {
-    setItems(nextItems);
-  }, []);
+  const replaceAll = useCallback((next) => setItems(next), []);
+
+  return { items, add, update, remove, replaceAll, loading: false };
+}
+
+// ── Supabase implementation ───────────────────────────────────────────────────
+function useSupabaseImpl(key, user) {
+  const table = toTable(key);
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!user) { setLoading(false); return; }
+    setLoading(true);
+
+    supabase
+      .from(table)
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .then(({ data, error }) => {
+        if (error) console.error('[supabase] fetch', table, error);
+        else setItems(data ?? []);
+        setLoading(false);
+      });
+
+    const channel = supabase
+      .channel(`${table}:${user.id}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table, filter: `user_id=eq.${user.id}` },
+        ({ eventType, new: n, old: o }) => {
+          setItems((p) => {
+            if (eventType === 'INSERT') return p.some((it) => it.id === n.id) ? p : [n, ...p];
+            if (eventType === 'UPDATE') return p.map((it) => (it.id === n.id ? n : it));
+            if (eventType === 'DELETE') return p.filter((it) => it.id !== o.id);
+            return p;
+          });
+        },
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [table, user?.id]);
+
+  const add = useCallback((record) => {
+    if (!user) return record;
+    const item = {
+      id: crypto.randomUUID(),
+      created_at: new Date().toISOString(),
+      ...record,
+      user_id: user.id,
+    };
+    setItems((p) => [item, ...p]);
+    supabase.from(table).insert(item).then(({ error }) => {
+      if (error) {
+        console.error('[supabase] insert', table, error);
+        setItems((p) => p.filter((it) => it.id !== item.id));
+      }
+    });
+    return item;
+  }, [table, user?.id]);
+
+  const update = useCallback((id, patch) => {
+    if (!user) return;
+    setItems((p) => p.map((it) => (it.id === id ? { ...it, ...patch } : it)));
+    supabase.from(table).update(patch).eq('id', id).eq('user_id', user.id)
+      .then(({ error }) => { if (error) console.error('[supabase] update', table, error); });
+  }, [table, user?.id]);
+
+  const remove = useCallback((id) => {
+    if (!user) return;
+    setItems((p) => p.filter((it) => it.id !== id));
+    supabase.from(table).delete().eq('id', id).eq('user_id', user.id)
+      .then(({ error }) => { if (error) console.error('[supabase] delete', table, error); });
+  }, [table, user?.id]);
+
+  const replaceAll = useCallback((next) => {
+    if (!user) return;
+    setItems(next);
+    supabase.from(table).delete().eq('user_id', user.id).then(() => {
+      if (next.length === 0) return;
+      const rows = next.map(({ user_id: _uid, ...rest }) => ({
+        id: rest.id ?? crypto.randomUUID(),
+        created_at: rest.created_at ?? new Date().toISOString(),
+        ...rest,
+        user_id: user.id,
+      }));
+      supabase.from(table).insert(rows)
+        .then(({ error }) => { if (error) console.error('[supabase] replaceAll', table, error); });
+    });
+  }, [table, user?.id]);
 
   return { items, add, update, remove, replaceAll, loading };
+}
+
+// ── Public hook ───────────────────────────────────────────────────────────────
+export default function useLocalCollection(key, seed = []) {
+  const auth = useAuth();
+  // Both hooks are always called to satisfy React's rules of hooks.
+  // Only the result matching the active storage backend is returned.
+  const local = useLocalStorageImpl(key, seed);
+  const db = useSupabaseImpl(key, isSupabaseConfigured ? (auth?.user ?? null) : null);
+  return isSupabaseConfigured ? db : local;
 }

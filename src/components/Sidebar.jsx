@@ -1,4 +1,6 @@
 import { NavLink } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
+import { isSupabaseConfigured } from '../lib/supabase';
 
 const links = [
   { to: '/', label: 'Dashboard', icon: '⌂' },
@@ -14,6 +16,10 @@ const links = [
 ];
 
 export default function Sidebar() {
+  const auth = useAuth();
+  const user = auth?.user;
+  const signOut = auth?.signOut;
+
   return (
     <aside className="w-60 shrink-0 bg-slate-900 text-slate-100 flex flex-col">
       <div className="px-6 py-6 border-b border-slate-800">
@@ -40,8 +46,22 @@ export default function Sidebar() {
           </NavLink>
         ))}
       </nav>
-      <div className="px-6 py-4 text-xs text-slate-500 border-t border-slate-800">
-        Local data &middot; Supabase ready
+      <div className="px-4 py-4 border-t border-slate-800">
+        {isSupabaseConfigured && user ? (
+          <>
+            <div className="text-xs text-slate-400 truncate mb-2 px-2">{user.email}</div>
+            <button
+              onClick={signOut}
+              className="w-full text-left text-xs text-slate-400 hover:text-slate-200 px-2 py-1.5 rounded-lg hover:bg-slate-800 transition-colors"
+            >
+              Sign out
+            </button>
+          </>
+        ) : (
+          <div className="text-xs text-slate-500 px-2">
+            {isSupabaseConfigured ? 'Connecting…' : 'Local data · Supabase ready'}
+          </div>
+        )}
       </div>
     </aside>
   );
