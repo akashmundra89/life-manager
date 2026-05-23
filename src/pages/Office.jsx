@@ -166,7 +166,7 @@ export default function Office() {
                   (overdue ? 'border-red-300' : soon ? 'border-amber-300' : 'border-slate-200')
                 }
               >
-                <div className="flex items-start gap-3">
+                <div className="flex flex-col sm:flex-row sm:items-start gap-2 sm:gap-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className={'font-medium ' + (it.status === 'Done' ? 'text-slate-400 line-through' : 'text-slate-900')}>
@@ -199,7 +199,7 @@ export default function Office() {
                       ) : 'No due date'}
                     </div>
                   </div>
-                  <div className="flex items-center gap-1 shrink-0">
+                  <div className="flex flex-wrap items-center gap-1 mt-2 sm:mt-0">
                     {STATUSES.map((s) => (
                       <button
                         key={s}

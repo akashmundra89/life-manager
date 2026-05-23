@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { idbGet, idbSet } from '../lib/idb';
 
 // Collection keys that differ from their Supabase table names
 const TABLE_MAP = { keyDates: 'key_dates' };
 const toTable = (key) => TABLE_MAP[key] ?? key;
 
-// ── localStorage fallback ─────────────────────────────────────────────────────
+// ── localStorage fallback (no Supabase configured) ───────────────────────────
 function useLocalStorageImpl(key, seed) {
   const storageKey = `life-manager:${key}`;
   const [items, setItems] = useState(() => {
@@ -45,7 +46,50 @@ function useLocalStorageImpl(key, seed) {
   return { items, add, update, remove, replaceAll, loading: false };
 }
 
-// ── Supabase implementation ───────────────────────────────────────────────────
+// ── IndexedDB (guest / browse-without-login mode) ────────────────────────────
+function useIndexedDBImpl(key, seed, enabled) {
+  const storageKey = `life-manager:${key}`;
+  const [items, setItems] = useState(seed);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!enabled) { setLoading(false); return; }
+    setLoading(true);
+    idbGet(storageKey)
+      .then((data) => { if (Array.isArray(data)) setItems(data); })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [storageKey, enabled]);
+
+  useEffect(() => {
+    if (!enabled || loading) return;
+    idbSet(storageKey, items).catch(console.error);
+  }, [storageKey, items, loading, enabled]);
+
+  const add = useCallback((record) => {
+    const item = {
+      id: record.id ?? crypto.randomUUID(),
+      created_at: record.created_at ?? new Date().toISOString(),
+      ...record,
+    };
+    setItems((p) => [item, ...p]);
+    return item;
+  }, []);
+
+  const update = useCallback((id, patch) => {
+    setItems((p) => p.map((it) => (it.id === id ? { ...it, ...patch } : it)));
+  }, []);
+
+  const remove = useCallback((id) => {
+    setItems((p) => p.filter((it) => it.id !== id));
+  }, []);
+
+  const replaceAll = useCallback((next) => setItems(next), []);
+
+  return { items, add, update, remove, replaceAll, loading };
+}
+
+// ── Supabase implementation (authenticated) ───────────────────────────────────
 function useSupabaseImpl(key, user) {
   const table = toTable(key);
   const [items, setItems] = useState([]);
@@ -139,9 +183,16 @@ function useSupabaseImpl(key, user) {
 // ── Public hook ───────────────────────────────────────────────────────────────
 export default function useLocalCollection(key, seed = []) {
   const auth = useAuth();
-  // Both hooks are always called to satisfy React's rules of hooks.
+  const guestMode = auth?.guestMode ?? false;
+  const user = auth?.user ?? null;
+
+  // All three hooks are always called to satisfy React's rules of hooks.
   // Only the result matching the active storage backend is returned.
   const local = useLocalStorageImpl(key, seed);
-  const db = useSupabaseImpl(key, isSupabaseConfigured ? (auth?.user ?? null) : null);
-  return isSupabaseConfigured ? db : local;
+  const idb = useIndexedDBImpl(key, seed, isSupabaseConfigured && guestMode);
+  const db = useSupabaseImpl(key, isSupabaseConfigured && !guestMode ? user : null);
+
+  if (!isSupabaseConfigured) return local;
+  if (guestMode) return idb;
+  return db;
 }

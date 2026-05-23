@@ -195,7 +195,7 @@ export default function IPO() {
         </div>
       </form>
 
-      <div className="flex gap-2 mb-4 text-sm">
+      <div className="flex flex-wrap gap-2 mb-4 text-sm">
         {['all', ...STATUSES].map((s) => (
           <button
             key={s}

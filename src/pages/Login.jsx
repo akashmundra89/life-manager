@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function Login() {
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, enterGuestMode } = useAuth();
   const [mode, setMode] = useState('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -15,7 +15,6 @@ export default function Login() {
     setError('');
     setMessage('');
     setLoading(true);
-
     try {
       if (mode === 'signin') {
         const { error } = await signIn(email, password);
@@ -35,15 +34,15 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4">
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4 py-8">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <div className="text-2xl font-semibold text-slate-900">Life Manager</div>
           <div className="text-sm text-slate-500 mt-1">Your daily command center</div>
         </div>
 
-        <div className="bg-white border border-slate-200 rounded-2xl p-8 shadow-sm">
-          <h1 className="text-lg font-semibold text-slate-800 mb-6">
+        <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+          <h1 className="text-lg font-semibold text-slate-800 mb-5">
             {mode === 'signin' ? 'Sign in' : 'Create account'}
           </h1>
 
@@ -52,7 +51,6 @@ export default function Login() {
               {message}
             </div>
           )}
-
           {error && (
             <div className="mb-4 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
               {error}
@@ -66,7 +64,7 @@ export default function Login() {
                 type="email"
                 required
                 autoComplete="email"
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+                className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
@@ -78,7 +76,7 @@ export default function Login() {
                 required
                 autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
                 minLength={6}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+                className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
@@ -86,13 +84,13 @@ export default function Login() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-2 px-4 bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors"
+              className="w-full py-2.5 px-4 bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors"
             >
               {loading ? 'Please wait…' : mode === 'signin' ? 'Sign in' : 'Create account'}
             </button>
           </form>
 
-          <p className="mt-5 text-center text-xs text-slate-500">
+          <p className="mt-4 text-center text-xs text-slate-500">
             {mode === 'signin' ? "Don't have an account?" : 'Already have an account?'}{' '}
             <button
               onClick={() => { setMode(mode === 'signin' ? 'signup' : 'signin'); setError(''); setMessage(''); }}
@@ -101,6 +99,18 @@ export default function Login() {
               {mode === 'signin' ? 'Sign up' : 'Sign in'}
             </button>
           </p>
+
+          <div className="mt-5 pt-5 border-t border-slate-100">
+            <button
+              onClick={enterGuestMode}
+              className="w-full py-2.5 px-4 border border-slate-300 hover:border-slate-400 hover:bg-slate-50 text-slate-700 rounded-lg text-sm font-medium transition-colors"
+            >
+              Browse without signing in
+            </button>
+            <p className="mt-2 text-center text-xs text-slate-400">
+              Data saved locally on this device (IndexedDB). Sign in anytime to sync to the cloud.
+            </p>
+          </div>
         </div>
       </div>
     </div>
