@@ -1,4 +1,6 @@
 import { NavLink } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
+import { isSupabaseConfigured } from '../lib/supabase';
 
 const links = [
   { to: '/', label: 'Dashboard', icon: '⌂' },
@@ -13,19 +15,49 @@ const links = [
   { to: '/cricket', label: 'Cricket Scores', icon: '\u{1F3CF}' },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ open, onClose }) {
+  const auth = useAuth();
+  const user = auth?.user;
+  const guestMode = auth?.guestMode;
+  const signOut = auth?.signOut;
+  const exitGuestMode = auth?.exitGuestMode;
+
   return (
-    <aside className="w-60 shrink-0 bg-slate-900 text-slate-100 flex flex-col">
-      <div className="px-6 py-6 border-b border-slate-800">
-        <div className="text-xl font-semibold">Life Manager</div>
-        <div className="text-xs text-slate-400 mt-1">Your daily command center</div>
+    <aside
+      className={[
+        'fixed lg:static inset-y-0 left-0 z-30',
+        'w-64 shrink-0 bg-slate-900 text-slate-100 flex flex-col',
+        'transition-transform duration-200 ease-in-out',
+        open ? 'translate-x-0' : '-translate-x-full',
+        'lg:translate-x-0',
+      ].join(' ')}
+    >
+      {/* Header */}
+      <div className="px-5 py-5 border-b border-slate-800 flex items-center justify-between">
+        <div>
+          <div className="text-base font-semibold">Life Manager</div>
+          <div className="text-xs text-slate-400 mt-0.5">Your daily command center</div>
+        </div>
+        {/* Close button — mobile only */}
+        <button
+          onClick={onClose}
+          className="lg:hidden p-1.5 rounded hover:bg-slate-700 transition-colors text-slate-400 hover:text-white"
+          aria-label="Close menu"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
       </div>
-      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+
+      {/* Nav links */}
+      <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto">
         {links.map((l) => (
           <NavLink
             key={l.to}
             to={l.to}
             end={l.to === '/'}
+            onClick={onClose}
             className={({ isActive }) =>
               [
                 'flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors',
@@ -40,8 +72,37 @@ export default function Sidebar() {
           </NavLink>
         ))}
       </nav>
-      <div className="px-6 py-4 text-xs text-slate-500 border-t border-slate-800">
-        Local data &middot; Supabase ready
+
+      {/* Footer */}
+      <div className="px-4 py-4 border-t border-slate-800">
+        {isSupabaseConfigured ? (
+          guestMode ? (
+            <div>
+              <div className="text-xs text-amber-400 font-medium mb-1 px-1">Guest mode</div>
+              <div className="text-xs text-slate-400 mb-2 px-1">Data saved on this device only.</div>
+              <button
+                onClick={exitGuestMode}
+                className="w-full text-left text-xs text-slate-300 hover:text-white px-2 py-1.5 rounded-lg hover:bg-slate-800 transition-colors"
+              >
+                Sign in to sync →
+              </button>
+            </div>
+          ) : user ? (
+            <div>
+              <div className="text-xs text-slate-400 truncate mb-2 px-1">{user.email}</div>
+              <button
+                onClick={signOut}
+                className="w-full text-left text-xs text-slate-400 hover:text-slate-200 px-2 py-1.5 rounded-lg hover:bg-slate-800 transition-colors"
+              >
+                Sign out
+              </button>
+            </div>
+          ) : (
+            <div className="text-xs text-slate-500 px-1">Connecting…</div>
+          )
+        ) : (
+          <div className="text-xs text-slate-500 px-1">Local data · Supabase ready</div>
+        )}
       </div>
     </aside>
   );
