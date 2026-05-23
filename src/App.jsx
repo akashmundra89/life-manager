@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
 import { isSupabaseConfigured } from './lib/supabase';
 import Sidebar from './components/Sidebar.jsx';
+import InstallPrompt from './components/InstallPrompt.jsx';
 import Login from './pages/Login.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import Grocery from './pages/Grocery.jsx';
@@ -32,6 +33,7 @@ export default function App() {
   }
 
   return (
+    <>
     <div className="flex h-full">
       {/* Mobile overlay */}
       {sidebarOpen && (
@@ -59,7 +61,7 @@ export default function App() {
         </div>
 
         <main className="flex-1 overflow-auto">
-          <div className="max-w-6xl mx-auto px-4 py-6 lg:px-6 lg:py-8">
+          <div className="max-w-6xl mx-auto px-4 py-6 lg:px-6 lg:py-8 pb-safe">
             <Routes>
               <Route path="/" element={<Dashboard />} />
               <Route path="/grocery" element={<Grocery />} />
@@ -77,5 +79,7 @@ export default function App() {
         </main>
       </div>
     </div>
+    <InstallPrompt />
+    </>
   );
 }

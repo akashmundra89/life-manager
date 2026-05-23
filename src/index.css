@@ -12,7 +12,13 @@ body {
     "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   background-color: #f8fafc;
   color: #0f172a;
+  /* Prevent iOS bounce scroll on the body */
+  overscroll-behavior: none;
 }
+
+/* iOS safe-area padding (notch / home indicator) */
+.pb-safe { padding-bottom: max(1.5rem, env(safe-area-inset-bottom)); }
+.pt-safe { padding-top: env(safe-area-inset-top); }
 
 /* Subtle scrollbar */
 ::-webkit-scrollbar { width: 10px; height: 10px; }
