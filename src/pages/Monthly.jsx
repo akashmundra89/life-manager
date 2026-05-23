@@ -1,20 +1,21 @@
 import { useMemo, useState } from 'react';
+import {
+  CalendarCheck, Plus, Pencil, Trash2, X as XIcon, ChevronLeft, ChevronRight,
+  Copy, Check, AlertCircle, Clock,
+} from 'lucide-react';
 import PageHeader from '../components/PageHeader.jsx';
-import EmptyState from '../components/EmptyState.jsx';
+import { Card, CardHeader, Badge, Button, EmptyState, ProgressRing } from '../components/ui';
+import { Input, Label } from '../components/ui/Input.jsx';
 import useLocalCollection from '../hooks/useLocalCollection.js';
 import {
-  currentMonthKey,
-  formatMonthKey,
-  shiftMonth,
-  daysUntil,
-  formatDate,
+  currentMonthKey, formatMonthKey, shiftMonth, daysUntil, formatDate,
 } from '../lib/dateUtils.js';
+import { cx } from '../lib/cx.js';
 
-const SEED = [];
 const empty = { title: '', due_date: '', notes: '' };
 
 export default function Monthly() {
-  const { items, add, update, remove } = useLocalCollection('monthly', SEED);
+  const { items, add, update, remove } = useLocalCollection('monthly', []);
   const [month, setMonth] = useState(currentMonthKey());
   const [form, setForm] = useState(empty);
   const [editingId, setEditingId] = useState(null);
@@ -28,10 +29,16 @@ export default function Monthly() {
     [items, month]
   );
 
-  const progress = useMemo(() => {
-    if (monthItems.length === 0) return 0;
+  const stats = useMemo(() => {
+    const total = monthItems.length;
     const done = monthItems.filter((i) => i.done).length;
-    return Math.round((done / monthItems.length) * 100);
+    const overdue = monthItems.filter((i) => {
+      const d = daysUntil(i.due_date);
+      return !i.done && d != null && d < 0;
+    }).length;
+    const today = monthItems.filter((i) => !i.done && daysUntil(i.due_date) === 0).length;
+    const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+    return { total, done, overdue, today, pct };
   }, [monthItems]);
 
   function submit(e) {
@@ -58,11 +65,7 @@ export default function Monthly() {
 
   function startEdit(it) {
     setEditingId(it.id);
-    setForm({
-      title: it.title || '',
-      due_date: it.due_date || '',
-      notes: it.notes || '',
-    });
+    setForm({ title: it.title || '', due_date: it.due_date || '', notes: it.notes || '' });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
@@ -76,13 +79,7 @@ export default function Monthly() {
     const prevItems = items.filter((i) => i.month === prev);
     if (prevItems.length === 0) return;
     for (const it of prevItems) {
-      add({
-        month,
-        title: it.title,
-        due_date: null,
-        notes: it.notes || '',
-        done: false,
-      });
+      add({ month, title: it.title, due_date: null, notes: it.notes || '', done: false });
     }
   }
 
@@ -91,157 +88,160 @@ export default function Monthly() {
   return (
     <div>
       <PageHeader
-        title="Monthly Tasks"
+        icon={<CalendarCheck className="w-5 h-5" />}
+        title="Monthly tasks"
         subtitle="Bills, habits, recurring chores — tracked month by month."
         action={
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => setMonth(shiftMonth(month, -1))}
-              className="px-3 py-1.5 border border-slate-300 rounded-lg text-sm bg-white hover:border-slate-400"
-            >
-              ←
-            </button>
-            <div className="px-3 py-1.5 border border-slate-300 rounded-lg text-sm bg-white min-w-[160px] text-center">
+            <Button variant="secondary" size="sm" iconOnly onClick={() => setMonth(shiftMonth(month, -1))} aria-label="Previous month">
+              <ChevronLeft className="w-4 h-4" />
+            </Button>
+            <div className="glass rounded-xl px-3 py-1.5 text-sm font-semibold text-ink min-w-[160px] text-center">
               {formatMonthKey(month)}
-              {isCurrent && <span className="ml-2 text-xs text-emerald-600 font-medium">current</span>}
+              {isCurrent && <span className="ml-2 text-[10px] text-emerald-600 dark:text-emerald-400 font-bold uppercase tracking-wider">now</span>}
             </div>
-            <button
-              onClick={() => setMonth(shiftMonth(month, 1))}
-              className="px-3 py-1.5 border border-slate-300 rounded-lg text-sm bg-white hover:border-slate-400"
-            >
-              →
-            </button>
+            <Button variant="secondary" size="sm" iconOnly onClick={() => setMonth(shiftMonth(month, 1))} aria-label="Next month">
+              <ChevronRight className="w-4 h-4" />
+            </Button>
           </div>
         }
       />
 
-      <div className="bg-white border border-slate-200 rounded-xl p-4 mb-6">
-        <div className="flex items-center justify-between mb-3">
-          <div className="text-sm text-slate-600">
-            {monthItems.length} task(s) · {progress}% done
+      {/* Progress hero */}
+      <Card className="mb-5 animate-fade-up" hover={false}>
+        <div className="flex items-center gap-5 flex-wrap">
+          <ProgressRing value={stats.pct} size={80} stroke={8} />
+          <div className="flex-1 min-w-[200px]">
+            <div className="text-2xl font-bold text-ink tracking-tight">
+              {stats.done} <span className="text-ink-faint font-normal text-base">/ {stats.total} done</span>
+            </div>
+            <div className="text-sm text-ink-muted mt-1">
+              {stats.total === 0
+                ? `No tasks for ${formatMonthKey(month)} yet.`
+                : stats.pct === 100
+                  ? `🎉 Everything ticked off for ${formatMonthKey(month)}.`
+                  : `${stats.total - stats.done} task${stats.total - stats.done === 1 ? '' : 's'} left this month.`}
+            </div>
+            <div className="flex flex-wrap gap-2 mt-2">
+              {stats.overdue > 0 && <Badge tone="rose"><AlertCircle className="w-3 h-3" /> {stats.overdue} overdue</Badge>}
+              {stats.today > 0 && <Badge tone="amber"><Clock className="w-3 h-3" /> {stats.today} today</Badge>}
+              {stats.overdue === 0 && stats.today === 0 && stats.total > 0 && <Badge tone="emerald"><Check className="w-3 h-3" /> on track</Badge>}
+            </div>
           </div>
-          <button
-            onClick={copyFromPrevious}
-            className="text-xs px-3 py-1.5 border border-slate-300 rounded-lg bg-white hover:border-slate-400"
-            title="Copy tasks from the previous month into this one (all unchecked)"
-          >
-            Copy from previous month
-          </button>
+          <Button variant="secondary" size="sm" onClick={copyFromPrevious} title="Copy tasks from the previous month (all unchecked)">
+            <Copy className="w-3.5 h-3.5" /> Copy from previous
+          </Button>
         </div>
-        <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-          <div className="h-full bg-emerald-500 transition-all" style={{ width: progress + '%' }} />
-        </div>
-      </div>
+      </Card>
 
-      <form
-        onSubmit={submit}
-        className={
-          'bg-white border rounded-xl p-4 mb-6 grid grid-cols-1 md:grid-cols-6 gap-3 ' +
-          (editingId ? 'border-brand-500' : 'border-slate-200')
-        }
+      <Card
+        className={cx('mb-5 animate-fade-up [animation-delay:60ms]', editingId && 'ring-2 ring-brand-500/40')}
+        hover={false}
       >
-        {editingId && (
-          <div className="md:col-span-6 text-sm text-brand-700 font-medium">
-            Editing task — make your changes and click Save.
-          </div>
-        )}
-        <input
-          className="md:col-span-2 px-3 py-2 border border-slate-300 rounded-lg text-sm"
-          placeholder="Task title (e.g. Pay rent)"
-          value={form.title}
-          onChange={(e) => setForm({ ...form, title: e.target.value })}
-        />
-        <input
-          type="date"
-          className="px-3 py-2 border border-slate-300 rounded-lg text-sm"
-          value={form.due_date}
-          onChange={(e) => setForm({ ...form, due_date: e.target.value })}
-          title="Due date (optional)"
-        />
-        <input
-          className="md:col-span-2 px-3 py-2 border border-slate-300 rounded-lg text-sm"
-          placeholder="Notes (optional)"
-          value={form.notes}
-          onChange={(e) => setForm({ ...form, notes: e.target.value })}
-        />
-        <div className="flex gap-2">
-          <button
-            type="submit"
-            className="flex-1 px-4 py-2 bg-brand-500 hover:bg-brand-600 text-white rounded-lg text-sm font-medium"
-          >
-            {editingId ? 'Save' : 'Add'}
-          </button>
-          {editingId && (
-            <button
-              type="button"
-              onClick={cancel}
-              className="px-3 py-2 border border-slate-300 rounded-lg text-sm"
-            >
-              Cancel
-            </button>
+        <CardHeader
+          icon={editingId ? <Pencil className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+          iconTone={editingId ? 'amber' : 'emerald'}
+          title={editingId ? 'Editing task' : 'Add task'}
+          subtitle={editingId ? 'Make your changes and save.' : 'Title required. Due date is optional.'}
+          action={editingId && (
+            <Button variant="ghost" size="sm" onClick={cancel}>
+              <XIcon className="w-4 h-4" /> Cancel
+            </Button>
           )}
-        </div>
-      </form>
+        />
+        <form onSubmit={submit} className="grid grid-cols-1 md:grid-cols-6 gap-3">
+          <div className="md:col-span-3">
+            <Label>Title</Label>
+            <Input autoFocus placeholder="e.g. Pay rent" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+          </div>
+          <div className="md:col-span-2">
+            <Label>Due date</Label>
+            <Input type="date" value={form.due_date} onChange={(e) => setForm({ ...form, due_date: e.target.value })} />
+          </div>
+          <div className="md:col-span-1 flex items-end">
+            <Button type="submit" variant="primary" size="md" className="w-full">
+              {editingId ? 'Save' : (<><Plus className="w-4 h-4" /> Add</>)}
+            </Button>
+          </div>
+          <div className="md:col-span-6">
+            <Label>Notes</Label>
+            <Input placeholder="Optional" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+          </div>
+        </form>
+      </Card>
 
       {monthItems.length === 0 ? (
-        <EmptyState title={'No tasks for ' + formatMonthKey(month)} hint="Add one above, or copy from the previous month." />
+        <EmptyState
+          icon={<CalendarCheck className="w-5 h-5" />}
+          title={`No tasks for ${formatMonthKey(month)}`}
+          hint="Add one above, or copy tasks from the previous month."
+        />
       ) : (
-        <ul className="bg-white border border-slate-200 rounded-xl divide-y divide-slate-100">
-          {monthItems.map((it) => {
-            const d = daysUntil(it.due_date);
-            const overdue = d != null && d < 0 && !it.done;
-            const soon = d != null && d >= 0 && d <= 3 && !it.done;
-            return (
-              <li key={it.id} className="flex items-center gap-3 px-4 py-3">
-                <input
-                  type="checkbox"
-                  className="h-4 w-4 accent-brand-500"
-                  checked={!!it.done}
-                  onChange={(e) => update(it.id, { done: e.target.checked })}
-                />
-                <div className="flex-1 min-w-0">
-                  <div className={'text-sm font-medium ' + (it.done ? 'line-through text-slate-400' : 'text-slate-800')}>
-                    {it.title}
+        <Card padded={false} hover={false} className="animate-fade-up [animation-delay:120ms]">
+          <ul className="divide-y divide-edge/5">
+            {monthItems.map((it) => {
+              const d = daysUntil(it.due_date);
+              const overdue = d != null && d < 0 && !it.done;
+              const soon = d != null && d >= 0 && d <= 3 && !it.done;
+              return (
+                <li key={it.id} className="flex items-center gap-3 px-4 py-3 hover:bg-surface-strong/30 transition-colors">
+                  <Checkbox checked={!!it.done} onChange={(v) => update(it.id, { done: v })} />
+                  <div className="flex-1 min-w-0">
+                    <div className={cx('text-sm font-semibold', it.done ? 'line-through text-ink-faint' : 'text-ink')}>
+                      {it.title}
+                    </div>
+                    <div className="text-xs text-ink-faint flex flex-wrap gap-x-2 gap-y-1 mt-0.5">
+                      {it.due_date && (
+                        <span className={cx(
+                          'inline-flex items-center gap-1',
+                          overdue && 'text-rose-600 dark:text-rose-300 font-semibold',
+                          soon && 'text-amber-600 dark:text-amber-300 font-semibold',
+                        )}>
+                          {overdue && <AlertCircle className="w-3 h-3" />}
+                          Due {formatDate(it.due_date)}
+                          {d != null && !it.done && (
+                            <span>
+                              {d < 0 ? ` · ${Math.abs(d)}d overdue`
+                                : d === 0 ? ' · today'
+                                : d === 1 ? ' · tomorrow'
+                                : ` · in ${d}d`}
+                            </span>
+                          )}
+                        </span>
+                      )}
+                      {it.notes && <span className="truncate">{it.notes}</span>}
+                    </div>
                   </div>
-                  <div className="text-xs text-slate-500 flex flex-wrap gap-x-3 gap-y-1 mt-0.5">
-                    {it.due_date && (
-                      <span className={overdue ? 'text-red-600 font-medium' : soon ? 'text-amber-700 font-medium' : ''}>
-                        Due {formatDate(it.due_date)}
-                        {d != null && !it.done && (
-                          <>
-                            {' · '}
-                            {d < 0
-                              ? Math.abs(d) + ' day(s) overdue'
-                              : d === 0
-                              ? 'today'
-                              : d === 1
-                              ? 'tomorrow'
-                              : 'in ' + d + ' days'}
-                          </>
-                        )}
-                      </span>
-                    )}
-                    {it.notes && <span className="truncate">{it.notes}</span>}
-                  </div>
-                </div>
-                <button
-                  onClick={() => startEdit(it)}
-                  className="text-slate-400 hover:text-slate-700 text-sm px-2"
-                >
-                  Edit
-                </button>
-                <button
-                  onClick={() => remove(it.id)}
-                  className="text-slate-400 hover:text-red-600 text-sm px-2"
-                  aria-label="Delete"
-                >
-                  ✕
-                </button>
-              </li>
-            );
-          })}
-        </ul>
+                  <Button variant="ghost" size="sm" iconOnly onClick={() => startEdit(it)} aria-label="Edit">
+                    <Pencil className="w-3.5 h-3.5" />
+                  </Button>
+                  <Button variant="ghost" size="sm" iconOnly onClick={() => remove(it.id)} aria-label="Delete">
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </Button>
+                </li>
+              );
+            })}
+          </ul>
+        </Card>
       )}
     </div>
+  );
+}
+
+function Checkbox({ checked, onChange }) {
+  return (
+    <button
+      type="button"
+      onClick={() => onChange(!checked)}
+      className={cx(
+        'w-5 h-5 rounded-md border-2 grid place-items-center shrink-0 transition-all',
+        checked
+          ? 'bg-grad-brand border-transparent text-white shadow-glow-brand'
+          : 'border-edge-strong/40 hover:border-brand-500/70 text-transparent',
+      )}
+      aria-label={checked ? 'Mark as not done' : 'Mark as done'}
+    >
+      <Check className="w-3 h-3" />
+    </button>
   );
 }

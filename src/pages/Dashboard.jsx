@@ -1,7 +1,13 @@
 import { useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import {
+  AlertCircle, Clock, CheckCircle2, Wallet,
+  CalendarDays, ShoppingCart, Briefcase, CalendarCheck, Star,
+  ArrowRight, Sparkles, Plus,
+} from 'lucide-react';
 import PageHeader from '../components/PageHeader.jsx';
+import { Card, CardHeader, Stat, Badge, badgeForDays, labelForDays, ProgressRing, Button } from '../components/ui';
 import useLocalCollection from '../hooks/useLocalCollection.js';
+import { useAuth } from '../contexts/AuthContext';
 import {
   formatDate,
   daysUntil,
@@ -9,21 +15,25 @@ import {
   currentMonthKey,
   formatMonthKey,
 } from '../lib/dateUtils.js';
+import { cx } from '../lib/cx.js';
 
 export default function Dashboard() {
+  const auth = useAuth();
   const grocery = useLocalCollection('grocery', []);
   const events = useLocalCollection('events', []);
   const office = useLocalCollection('office', []);
   const keyDates = useLocalCollection('keyDates', []);
   const monthly = useLocalCollection('monthly', []);
+  const expenses = useLocalCollection('expenses', []);
 
   const month = currentMonthKey();
+  const firstName = (auth?.user?.email?.split('@')[0] || 'Akash').replace(/[._-]/g, ' ').split(' ')[0];
+  const niceName = firstName[0].toUpperCase() + firstName.slice(1);
+  const greeting = greetingFor(new Date());
 
+  // ── Aggregations ─────────────────────────────────────────────────────────
   const urgentGroceries = useMemo(
-    () =>
-      grocery.items
-        .filter((g) => !g.checked && g.priority === 'High')
-        .slice(0, 5),
+    () => grocery.items.filter((g) => !g.checked && g.priority === 'High').slice(0, 5),
     [grocery.items]
   );
 
@@ -62,108 +72,220 @@ export default function Dashboard() {
     [monthly.items, month]
   );
   const monthDone = monthThis.filter((i) => i.done).length;
-  const monthPct =
-    monthThis.length > 0 ? Math.round((monthDone / monthThis.length) * 100) : 0;
+  const monthPct = monthThis.length > 0 ? Math.round((monthDone / monthThis.length) * 100) : 0;
 
+  // Stat strip metrics
+  const overdueCount = useMemo(() => {
+    return [...office.items, ...events.items].filter((it) => {
+      const d = daysUntil(it.due_date || it.date);
+      const isDone = it.status === 'Done';
+      return !isDone && d != null && d < 0;
+    }).length;
+  }, [office.items, events.items]);
+
+  const dueTodayCount = useMemo(() => {
+    return [...office.items, ...events.items].filter((it) => {
+      const d = daysUntil(it.due_date || it.date);
+      const isDone = it.status === 'Done';
+      return !isDone && d === 0;
+    }).length;
+  }, [office.items, events.items]);
+
+  const doneThisWeek = useMemo(() => {
+    const now = Date.now();
+    const weekAgo = now - 7 * 86400000;
+    return office.items.filter((t) => {
+      if (t.status !== 'Done') return false;
+      const ts = t.completed_at ? new Date(t.completed_at).getTime() : (t.created_at ? new Date(t.created_at).getTime() : 0);
+      return ts >= weekAgo;
+    }).length;
+  }, [office.items]);
+
+  const monthSpend = useMemo(() => {
+    const total = expenses.items
+      .filter((i) => (i.date || '').startsWith(month))
+      .reduce((s, i) => s + (Number(i.amount) || 0), 0);
+    return total;
+  }, [expenses.items, month]);
+
+  // ── Render ───────────────────────────────────────────────────────────────
   return (
     <div>
       <PageHeader
-        title={`Hi Akash 👋`}
-        subtitle={`Here's what's on your plate · ${formatDate(new Date().toISOString())}`}
+        icon={<Sparkles className="w-5 h-5" />}
+        title={`${greeting}, ${niceName}`}
+        subtitle={`${formatDate(new Date().toISOString())} · ${attentionPhrase(overdueCount, dueTodayCount)}`}
+        action={
+          <Button variant="primary" size="md">
+            <Plus className="w-4 h-4" /> Quick add
+          </Button>
+        }
       />
 
+      {/* STAT STRIP */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-5 sm:mb-6">
+        <Stat
+          label="Overdue"
+          value={overdueCount}
+          tone="rose"
+          icon={<AlertCircle className="w-4 h-4" />}
+          delta={overdueCount > 0 ? { kind: 'down', text: 'needs attention' } : { kind: 'up', text: 'all clear' }}
+          className="animate-fade-up"
+        />
+        <Stat
+          label="Due today"
+          value={dueTodayCount}
+          tone="amber"
+          icon={<Clock className="w-4 h-4" />}
+          delta={{ kind: 'neutral', text: dueTodayCount === 0 ? 'nothing pressing' : 'on the menu' }}
+          className="animate-fade-up [animation-delay:60ms]"
+        />
+        <Stat
+          label="Done this week"
+          value={doneThisWeek}
+          tone="emerald"
+          icon={<CheckCircle2 className="w-4 h-4" />}
+          delta={{ kind: 'up', text: 'last 7 days' }}
+          className="animate-fade-up [animation-delay:120ms]"
+        />
+        <Stat
+          label={`${formatMonthKey(month).split(' ')[0]} spend`}
+          value={formatMoney(monthSpend)}
+          tone="indigo"
+          icon={<Wallet className="w-4 h-4" />}
+          delta={{ kind: 'neutral', text: `${expenses.items.filter((i) => (i.date || '').startsWith(month)).length} txns` }}
+          className="animate-fade-up [animation-delay:180ms]"
+        />
+      </div>
+
+      {/* CARD GRID */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        <Card title="Upcoming events (7 days)" to="/events" count={upcomingEvents.length}>
-          {upcomingEvents.length === 0 ? (
-            <Hint>No events in the next week.</Hint>
-          ) : (
-            <ul className="space-y-2">
-              {upcomingEvents.map((e) => {
-                const d = daysUntil(e.date);
-                return (
-                  <li key={e.id} className="flex items-center justify-between text-sm">
-                    <span className="truncate">{e.title}</span>
-                    <span className={pillFor(d)}>{labelFor(d)}</span>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </Card>
+        <DashCard
+          to="/events"
+          icon={<CalendarDays className="w-4 h-4" />}
+          iconTone="indigo"
+          title="Upcoming events"
+          subtitle="Next 7 days"
+          count={upcomingEvents.length}
+          delay={220}
+          empty={upcomingEvents.length === 0 && 'No events in the next week.'}
+        >
+          <List>
+            {upcomingEvents.map((e) => {
+              const d = daysUntil(e.date);
+              return (
+                <Row key={e.id} name={e.title} badge={<Badge tone={badgeForDays(d)}>{labelForDays(d)}</Badge>} />
+              );
+            })}
+          </List>
+        </DashCard>
 
-        <Card title="Urgent groceries" to="/grocery" count={urgentGroceries.length}>
-          {urgentGroceries.length === 0 ? (
-            <Hint>No high-priority items pending.</Hint>
-          ) : (
-            <ul className="space-y-2">
-              {urgentGroceries.map((g) => (
-                <li key={g.id} className="flex items-center justify-between text-sm">
-                  <span className="truncate">
-                    {g.name}{g.qty ? ` · ${g.qty}` : ''}
-                  </span>
-                  <span className="text-xs text-red-700 bg-red-100 px-2 py-0.5 rounded-full">
-                    High
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
+        <DashCard
+          to="/grocery"
+          icon={<ShoppingCart className="w-4 h-4" />}
+          iconTone="rose"
+          title="Urgent groceries"
+          subtitle="High priority"
+          count={urgentGroceries.length}
+          delay={270}
+          empty={urgentGroceries.length === 0 && 'No high-priority items pending.'}
+        >
+          <List>
+            {urgentGroceries.map((g) => (
+              <Row
+                key={g.id}
+                name={`${g.name}${g.qty ? ` · ${g.qty}` : ''}`}
+                badge={<Badge tone="rose">High</Badge>}
+              />
+            ))}
+          </List>
+        </DashCard>
 
-        <Card title="Office due soon (7 days)" to="/office" count={officeDueSoon.length}>
-          {officeDueSoon.length === 0 ? (
-            <Hint>No tasks due in the next week.</Hint>
-          ) : (
-            <ul className="space-y-2">
-              {officeDueSoon.map((t) => {
-                const d = daysUntil(t.due_date);
-                return (
-                  <li key={t.id} className="flex items-center justify-between text-sm">
-                    <span className="truncate">{t.title}</span>
-                    <span className={pillFor(d)}>{labelFor(d)}</span>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </Card>
+        <DashCard
+          to="/office"
+          icon={<Briefcase className="w-4 h-4" />}
+          iconTone="amber"
+          title="Office due soon"
+          subtitle="Next 7 days"
+          count={officeDueSoon.length}
+          delay={320}
+          empty={officeDueSoon.length === 0 && 'No tasks due in the next week.'}
+        >
+          <List>
+            {officeDueSoon.map((t) => {
+              const d = daysUntil(t.due_date);
+              return (
+                <Row key={t.id} name={t.title} badge={<Badge tone={badgeForDays(d)}>{labelForDays(d)}</Badge>} />
+              );
+            })}
+          </List>
+        </DashCard>
 
-        <Card title={`Monthly progress · ${formatMonthKey(month)}`} to="/monthly" count={monthThis.length}>
-          <div className="text-sm text-slate-600 mb-2">
-            {monthDone} of {monthThis.length} done · {monthPct}%
+        <DashCard
+          to="/monthly"
+          icon={<CalendarCheck className="w-4 h-4" />}
+          iconTone="emerald"
+          title="Monthly progress"
+          subtitle={formatMonthKey(month)}
+          count={`${monthDone} / ${monthThis.length}`}
+          delay={370}
+        >
+          <div className="flex items-center gap-4">
+            <ProgressRing value={monthPct} size={72} stroke={7} />
+            <div className="text-sm text-ink-muted leading-tight">
+              <div className="font-semibold text-ink">{Math.max(0, monthThis.length - monthDone)} left</div>
+              <div className="text-xs text-ink-faint mt-1">
+                {monthThis.length === 0 ? 'No tasks yet — add a few.' : monthPct >= 75 ? 'Almost there!' : monthPct >= 40 ? 'On pace.' : 'Just getting started.'}
+              </div>
+            </div>
           </div>
-          <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-emerald-500 transition-all"
-              style={{ width: `${monthPct}%` }}
-            />
-          </div>
-        </Card>
+        </DashCard>
 
-        <Card title="Recurring dates (2 weeks)" to="/key-dates" count={recurringSoon.length}>
-          {recurringSoon.length === 0 ? (
-            <Hint>No recurring dates approaching.</Hint>
-          ) : (
-            <ul className="space-y-2">
-              {recurringSoon.map((k) => (
-                <li key={k.id} className="flex items-center justify-between text-sm">
-                  <span className="truncate">{k.title}</span>
-                  <span className="text-xs text-violet-700 bg-violet-100 px-2 py-0.5 rounded-full">
-                    {k._d === 0 ? 'Today' : `in ${k._d}d`}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
+        <DashCard
+          to="/key-dates"
+          icon={<Star className="w-4 h-4" />}
+          iconTone="violet"
+          title="Recurring dates"
+          subtitle="Next 2 weeks"
+          count={recurringSoon.length}
+          delay={420}
+          empty={recurringSoon.length === 0 && 'No recurring dates approaching.'}
+        >
+          <List>
+            {recurringSoon.map((k) => (
+              <Row
+                key={k.id}
+                name={k.title}
+                badge={<Badge tone="violet">{k._d === 0 ? 'today' : `in ${k._d}d`}</Badge>}
+              />
+            ))}
+          </List>
+        </DashCard>
 
-        <Card title="Quick links" count={null}>
-          <div className="grid grid-cols-2 gap-2 text-sm">
-            <QuickLink to="/grocery" label="Grocery" />
-            <QuickLink to="/events" label="Events" />
-            <QuickLink to="/office" label="Office" />
-            <QuickLink to="/key-dates" label="Key Dates" />
-            <QuickLink to="/monthly" label="Monthly" />
+        <Card className="animate-fade-up [animation-delay:470ms]" hover={false}>
+          <CardHeader
+            icon={<Sparkles className="w-4 h-4" />}
+            iconTone="brand"
+            title="Quick links"
+          />
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { to: '/grocery',   label: 'Grocery',   Icon: ShoppingCart },
+              { to: '/events',    label: 'Events',    Icon: CalendarDays },
+              { to: '/office',    label: 'Office',    Icon: Briefcase },
+              { to: '/expenses',  label: 'Expenses',  Icon: Wallet },
+              { to: '/key-dates', label: 'Key dates', Icon: Star },
+              { to: '/monthly',   label: 'Monthly',   Icon: CalendarCheck },
+            ].map(({ to, label, Icon }) => (
+              <a
+                key={to}
+                href={`#${to}`}
+                className="flex items-center gap-2 px-3 py-2 rounded-xl glass-soft glass-hover hover:bg-surface-strong/60 text-sm text-ink-muted hover:text-ink transition-colors"
+              >
+                <Icon className="w-3.5 h-3.5" />
+                <span>{label}</span>
+              </a>
+            ))}
           </div>
         </Card>
       </div>
@@ -171,53 +293,62 @@ export default function Dashboard() {
   );
 }
 
-function Card({ title, to, count, children }) {
-  const header = (
-    <div className="flex items-center justify-between mb-3">
-      <h3 className="text-sm font-semibold text-slate-700">{title}</h3>
-      {count != null && (
-        <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">
-          {count}
-        </span>
-      )}
-    </div>
-  );
-  const body = (
-    <div className="bg-white border border-slate-200 rounded-xl p-4 hover:border-slate-300 transition-colors h-full">
-      {header}
-      {children}
-    </div>
-  );
-  return to ? <Link to={to} className="block">{body}</Link> : body;
-}
-
-function Hint({ children }) {
-  return <div className="text-sm text-slate-500">{children}</div>;
-}
-
-function QuickLink({ to, label }) {
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function DashCard({ to, icon, iconTone, title, subtitle, count, children, empty, delay = 0 }) {
   return (
-    <Link
-      to={to}
-      className="px-3 py-2 border border-slate-200 rounded-lg text-slate-700 hover:bg-slate-50 text-center"
-    >
-      {label}
-    </Link>
+    <Card to={to} className={cx('group animate-fade-up')} hover={true} style={{ animationDelay: `${delay}ms` }}>
+      <CardHeader
+        icon={icon}
+        iconTone={iconTone}
+        title={title}
+        subtitle={subtitle}
+        action={
+          <div className="flex items-center gap-2">
+            {count != null && count !== 0 && count !== '0' && (
+              <Badge tone="slate" size="sm">{count}</Badge>
+            )}
+            <ArrowRight className="w-4 h-4 text-ink-faint opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all" />
+          </div>
+        }
+      />
+      {empty ? <div className="text-sm text-ink-faint pt-0.5">{empty}</div> : children}
+    </Card>
   );
 }
 
-function pillFor(d) {
-  if (d == null) return 'text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full';
-  if (d < 0) return 'text-xs bg-slate-100 text-slate-400 px-2 py-0.5 rounded-full';
-  if (d === 0) return 'text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full';
-  if (d <= 3) return 'text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full';
-  return 'text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full';
+function List({ children }) {
+  return <ul className="space-y-2">{children}</ul>;
 }
 
-function labelFor(d) {
-  if (d == null) return '—';
-  if (d < 0) return 'past';
-  if (d === 0) return 'today';
-  if (d === 1) return 'tomorrow';
-  return `in ${d}d`;
+function Row({ name, badge }) {
+  return (
+    <li className="flex items-center justify-between gap-3 text-sm">
+      <span className="truncate text-ink">{name}</span>
+      {badge}
+    </li>
+  );
+}
+
+function greetingFor(date) {
+  const h = date.getHours();
+  if (h < 5) return 'Up late';
+  if (h < 12) return 'Good morning';
+  if (h < 17) return 'Good afternoon';
+  if (h < 21) return 'Good evening';
+  return 'Good night';
+}
+
+function attentionPhrase(overdue, today) {
+  const n = overdue + today;
+  if (n === 0) return "Nothing urgent — enjoy your day.";
+  if (overdue > 0 && today > 0) return `${overdue} overdue · ${today} due today.`;
+  if (overdue > 0) return `${overdue} overdue item${overdue > 1 ? 's' : ''}.`;
+  return `${today} thing${today > 1 ? 's' : ''} due today.`;
+}
+
+function formatMoney(n) {
+  if (n == null) return '—';
+  if (n >= 100000) return `₹${(n / 100000).toFixed(1)}L`;
+  if (n >= 1000) return `₹${(n / 1000).toFixed(1)}k`;
+  return `₹${Math.round(n)}`;
 }

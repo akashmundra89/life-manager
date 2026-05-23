@@ -6,8 +6,21 @@
     <title>Life Manager</title>
 
     <!-- PWA theme -->
-    <meta name="theme-color" content="#3b6dff" />
+    <meta name="theme-color" content="#3b6dff" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#050816" media="(prefers-color-scheme: dark)" />
     <meta name="description" content="Your daily command center — grocery, events, expenses, and more." />
+
+    <!-- No-FOUC theme init: read saved choice or system preference, set <html class="dark"> before paint -->
+    <script>
+      (function () {
+        try {
+          var saved = localStorage.getItem('life-manager:theme');
+          var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+          var theme = saved === 'light' || saved === 'dark' ? saved : (prefersDark ? 'dark' : 'light');
+          if (theme === 'dark') document.documentElement.classList.add('dark');
+        } catch (e) {}
+      })();
+    </script>
 
     <!-- iOS PWA -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
