@@ -1,24 +1,37 @@
 import { useMemo, useState } from 'react';
+import { CalendarDays, Plus, Pencil, Trash2, X as XIcon, Clock } from 'lucide-react';
 import PageHeader from '../components/PageHeader.jsx';
-import EmptyState from '../components/EmptyState.jsx';
+import { Card, CardHeader, Badge, badgeForDays, labelForDays, Button, EmptyState } from '../components/ui';
+import { Input, Label } from '../components/ui/Input.jsx';
 import useLocalCollection from '../hooks/useLocalCollection.js';
 import { formatDate, daysUntil, todayISO } from '../lib/dateUtils.js';
+import { cx } from '../lib/cx.js';
 
-const SEED = [];
 const empty = { title: '', date: '', time: '' };
 
 export default function Events() {
-  const { items, add, update, remove } = useLocalCollection('events', SEED);
+  const { items, add, update, remove } = useLocalCollection('events', []);
   const [form, setForm] = useState(empty);
   const [editingId, setEditingId] = useState(null);
 
   const sorted = useMemo(() => {
     return [...items].sort((a, b) => {
-      const ad = a.date + ' ' + (a.time || '');
-      const bd = b.date + ' ' + (b.time || '');
+      const ad = (a.date || '') + ' ' + (a.time || '');
+      const bd = (b.date || '') + ' ' + (b.time || '');
       return ad.localeCompare(bd);
     });
   }, [items]);
+
+  // Split into upcoming / past for visual separation
+  const { upcoming, past } = useMemo(() => {
+    const up = [];
+    const pa = [];
+    for (const it of sorted) {
+      const d = daysUntil(it.date);
+      if (d == null || d < 0) pa.push(it); else up.push(it);
+    }
+    return { upcoming: up, past: pa.reverse() };
+  }, [sorted]);
 
   function submit(e) {
     e.preventDefault();
@@ -35,6 +48,7 @@ export default function Events() {
   function startEdit(it) {
     setEditingId(it.id);
     setForm({ title: it.title, date: it.date, time: it.time || '' });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   function cancel() {
@@ -45,100 +59,128 @@ export default function Events() {
   return (
     <div>
       <PageHeader
-        title="Upcoming Events"
+        icon={<CalendarDays className="w-5 h-5" />}
+        title="Upcoming events"
         subtitle="Things happening in the next few days."
       />
 
-      <form
-        onSubmit={submit}
-        className="bg-white border border-slate-200 rounded-xl p-4 mb-6 grid grid-cols-1 md:grid-cols-5 gap-3"
+      <Card
+        className={cx('mb-5 animate-fade-up', editingId && 'ring-2 ring-brand-500/40')}
+        hover={false}
       >
-        <input
-          className="md:col-span-2 px-3 py-2 border border-slate-300 rounded-lg text-sm"
-          placeholder="Event title"
-          value={form.title}
-          onChange={(e) => setForm({ ...form, title: e.target.value })}
+        <CardHeader
+          icon={editingId ? <Pencil className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+          iconTone={editingId ? 'amber' : 'emerald'}
+          title={editingId ? 'Editing event' : 'Add event'}
+          subtitle={editingId ? 'Make your changes and save.' : 'Title + date required, time is optional.'}
+          action={editingId && (
+            <Button variant="ghost" size="sm" onClick={cancel}>
+              <XIcon className="w-4 h-4" /> Cancel
+            </Button>
+          )}
         />
-        <input
-          type="date"
-          className="px-3 py-2 border border-slate-300 rounded-lg text-sm"
-          value={form.date}
-          min={todayISO()}
-          onChange={(e) => setForm({ ...form, date: e.target.value })}
+        <form onSubmit={submit} className="grid grid-cols-1 md:grid-cols-6 gap-3">
+          <div className="md:col-span-3">
+            <Label>Title</Label>
+            <Input autoFocus placeholder="e.g. Dentist appointment" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+          </div>
+          <div className="md:col-span-2">
+            <Label>Date</Label>
+            <Input type="date" value={form.date} min={editingId ? undefined : todayISO()} onChange={(e) => setForm({ ...form, date: e.target.value })} />
+          </div>
+          <div className="md:col-span-1">
+            <Label>Time</Label>
+            <Input type="time" value={form.time} onChange={(e) => setForm({ ...form, time: e.target.value })} />
+          </div>
+          <div className="md:col-span-6 flex justify-end">
+            <Button type="submit" variant="primary" size="md">
+              {editingId ? 'Save event' : (<><Plus className="w-4 h-4" /> Add event</>)}
+            </Button>
+          </div>
+        </form>
+      </Card>
+
+      {items.length === 0 ? (
+        <EmptyState
+          icon={<CalendarDays className="w-5 h-5" />}
+          title="No upcoming events"
+          hint="Add one above to get a reminder on the dashboard."
         />
-        <input
-          type="time"
-          className="px-3 py-2 border border-slate-300 rounded-lg text-sm"
-          value={form.time}
-          onChange={(e) => setForm({ ...form, time: e.target.value })}
-        />
-        <div className="flex gap-2">
-          <button
-            type="submit"
-            className="flex-1 px-4 py-2 bg-brand-500 hover:bg-brand-600 text-white rounded-lg text-sm font-medium"
-          >
-            {editingId ? 'Save' : 'Add'}
-          </button>
-          {editingId && (
-            <button
-              type="button"
-              onClick={cancel}
-              className="px-3 py-2 border border-slate-300 rounded-lg text-sm"
-            >
-              Cancel
-            </button>
+      ) : (
+        <>
+          {upcoming.length > 0 && (
+            <section className="mb-6 animate-fade-up">
+              <h2 className="text-[11px] font-bold text-ink-faint uppercase tracking-wider mb-2 px-1">
+                Upcoming · {upcoming.length}
+              </h2>
+              <Card padded={false} hover={false}>
+                <ul className="divide-y divide-edge/5">
+                  {upcoming.map((it) => (
+                    <EventRow key={it.id} item={it} onEdit={startEdit} onDelete={remove} />
+                  ))}
+                </ul>
+              </Card>
+            </section>
+          )}
+          {past.length > 0 && (
+            <section className="animate-fade-up [animation-delay:80ms]">
+              <h2 className="text-[11px] font-bold text-ink-faint uppercase tracking-wider mb-2 px-1">
+                Past · {past.length}
+              </h2>
+              <Card padded={false} hover={false}>
+                <ul className="divide-y divide-edge/5">
+                  {past.map((it) => (
+                    <EventRow key={it.id} item={it} onEdit={startEdit} onDelete={remove} dim />
+                  ))}
+                </ul>
+              </Card>
+            </section>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+function EventRow({ item, onEdit, onDelete, dim = false }) {
+  const d = daysUntil(item.date);
+  return (
+    <li className={cx('flex items-center gap-3 px-4 py-3 hover:bg-surface-strong/30 transition-colors', dim && 'opacity-60')}>
+      <DateChip iso={item.date} />
+      <div className="flex-1 min-w-0">
+        <div className={cx('text-sm font-semibold truncate', dim && 'line-through')}>{item.title}</div>
+        <div className="text-xs text-ink-faint flex items-center gap-1.5">
+          <span>{formatDate(item.date)}</span>
+          {item.time && (
+            <>
+              <span>·</span>
+              <Clock className="w-3 h-3" />
+              <span>{item.time}</span>
+            </>
           )}
         </div>
-      </form>
+      </div>
+      <Badge tone={badgeForDays(d)}>{labelForDays(d)}</Badge>
+      <Button variant="ghost" size="sm" iconOnly onClick={() => onEdit(item)} aria-label="Edit">
+        <Pencil className="w-3.5 h-3.5" />
+      </Button>
+      <Button variant="ghost" size="sm" iconOnly onClick={() => onDelete(item.id)} aria-label="Delete">
+        <Trash2 className="w-3.5 h-3.5" />
+      </Button>
+    </li>
+  );
+}
 
-      {sorted.length === 0 ? (
-        <EmptyState title="No upcoming events" hint="Add one above to get a reminder on the dashboard." />
-      ) : (
-        <ul className="bg-white border border-slate-200 rounded-xl divide-y divide-slate-100">
-          {sorted.map((it) => {
-            const d = daysUntil(it.date);
-            const tone =
-              d == null ? 'bg-slate-100 text-slate-600' :
-              d < 0 ? 'bg-slate-100 text-slate-400 line-through' :
-              d === 0 ? 'bg-red-100 text-red-700' :
-              d <= 3 ? 'bg-amber-100 text-amber-700' :
-              'bg-emerald-100 text-emerald-700';
-            const label =
-              d == null ? '' :
-              d < 0 ? 'Past' :
-              d === 0 ? 'Today' :
-              d === 1 ? 'Tomorrow' :
-              `In ${d} days`;
-            return (
-              <li key={it.id} className="flex items-center gap-3 px-4 py-3">
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-slate-800">{it.title}</div>
-                  <div className="text-xs text-slate-500">
-                    {formatDate(it.date)}
-                    {it.time && ` · ${it.time}`}
-                  </div>
-                </div>
-                <span className={'text-xs font-medium px-2 py-0.5 rounded-full ' + tone}>
-                  {label}
-                </span>
-                <button
-                  onClick={() => startEdit(it)}
-                  className="text-slate-400 hover:text-slate-700 text-sm px-2"
-                >
-                  Edit
-                </button>
-                <button
-                  onClick={() => remove(it.id)}
-                  className="text-slate-400 hover:text-red-600 text-sm px-2"
-                  aria-label="Delete"
-                >
-                  ✕
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      )}
+function DateChip({ iso }) {
+  if (!iso) return <div className="w-11 h-11 rounded-xl glass-soft" />;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return <div className="w-11 h-11 rounded-xl glass-soft" />;
+  const day = d.getDate();
+  const mon = d.toLocaleDateString(undefined, { month: 'short' }).toUpperCase();
+  return (
+    <div className="w-11 h-11 rounded-xl glass flex flex-col items-center justify-center shrink-0">
+      <div className="text-[9px] font-bold text-brand-600 dark:text-brand-300 leading-none">{mon}</div>
+      <div className="text-base font-bold text-ink leading-none mt-0.5">{day}</div>
     </div>
   );
 }

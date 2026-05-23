@@ -1,52 +1,54 @@
 import { useMemo, useState } from 'react';
+import {
+  Wallet, ChevronLeft, ChevronRight, Search, Pencil, Trash2,
+  Repeat, Tag as TagIcon, Plus, X as XIcon, Filter, TrendingUp,
+} from 'lucide-react';
+import {
+  ResponsiveContainer, PieChart, Pie, Cell, Tooltip,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid,
+} from 'recharts';
 import PageHeader from '../components/PageHeader.jsx';
-import EmptyState from '../components/EmptyState.jsx';
+import { Card, CardHeader, Stat, Badge, Button, EmptyState } from '../components/ui';
+import { Input, Select, Label } from '../components/ui/Input.jsx';
 import useLocalCollection from '../hooks/useLocalCollection.js';
 import {
-  currentMonthKey,
-  formatMonthKey,
-  shiftMonth,
-  formatDate,
-  todayISO,
+  currentMonthKey, formatMonthKey, shiftMonth, formatDate, todayISO,
 } from '../lib/dateUtils.js';
+import { cx } from '../lib/cx.js';
 
 const CATEGORIES = [
-  'Food & Dining',
-  'Groceries',
-  'Transport',
-  'Bills & Utilities',
-  'Shopping',
-  'Health',
-  'Entertainment',
-  'Rent',
-  'Investment',
-  'Subscriptions',
-  'Travel',
-  'Education',
-  'Other',
+  'Food & Dining', 'Groceries', 'Transport', 'Bills & Utilities', 'Shopping',
+  'Health', 'Entertainment', 'Rent', 'Investment', 'Subscriptions',
+  'Travel', 'Education', 'Other',
 ];
 
 const PAYMENT_METHODS = ['UPI', 'Cash', 'Credit Card', 'Debit Card', 'Net Banking', 'Other'];
 
-// Each expense: {
-//   id, date (YYYY-MM-DD), category, amount (number),
-//   description, payment_method, merchant, recurring (bool), tags (string[])
-// }
-const SEED = [];
+// Stable color per category — taken from Tailwind palette stops.
+const CAT_COLOR = {
+  'Food & Dining':     '#f97316', // orange-500
+  'Groceries':         '#10b981', // emerald-500
+  'Transport':         '#0ea5e9', // sky-500
+  'Bills & Utilities': '#6366f1', // indigo-500
+  'Shopping':          '#ec4899', // pink-500
+  'Health':            '#14b8a6', // teal-500
+  'Entertainment':     '#a855f7', // purple-500
+  'Rent':              '#f43f5e', // rose-500
+  'Investment':        '#22c55e', // green-500
+  'Subscriptions':     '#9b6bff', // violet-500
+  'Travel':            '#3b6dff', // brand-500
+  'Education':         '#eab308', // yellow-500
+  'Other':             '#64748b', // slate-500
+};
 
 const empty = {
-  date: '',
-  category: 'Food & Dining',
-  amount: '',
-  description: '',
-  payment_method: 'UPI',
-  merchant: '',
-  recurring: false,
-  tagsText: '',
+  date: '', category: 'Food & Dining', amount: '',
+  description: '', payment_method: 'UPI', merchant: '',
+  recurring: false, tagsText: '',
 };
 
 export default function Expenses() {
-  const { items, add, update, remove } = useLocalCollection('expenses', SEED);
+  const { items, add, update, remove } = useLocalCollection('expenses', []);
   const [month, setMonth] = useState(currentMonthKey());
   const [form, setForm] = useState({ ...empty, date: todayISO() });
   const [editingId, setEditingId] = useState(null);
@@ -81,19 +83,42 @@ export default function Expenses() {
       const c = i.category || 'Other';
       byCat[c] = (byCat[c] || 0) + (Number(i.amount) || 0);
     }
-    const topCategory =
-      Object.entries(byCat).sort((a, b) => b[1] - a[1])[0] || ['—', 0];
-    const recurring = all
-      .filter((i) => i.recurring)
-      .reduce((s, i) => s + (Number(i.amount) || 0), 0);
+    const topCategory = Object.entries(byCat).sort((a, b) => b[1] - a[1])[0] || ['—', 0];
+    const recurring = all.filter((i) => i.recurring).reduce((s, i) => s + (Number(i.amount) || 0), 0);
     const today = new Date();
     const [y, m] = month.split('-').map(Number);
     const sameMonth = today.getFullYear() === y && today.getMonth() + 1 === m;
     const daysInMonth = new Date(y, m, 0).getDate();
     const daysElapsed = sameMonth ? today.getDate() : daysInMonth;
     const dailyAvg = daysElapsed > 0 ? total / daysElapsed : 0;
-    return { total, count, byCat, topCategory, recurring, dailyAvg, daysElapsed, daysInMonth };
+
+    // Daily series for the bar chart
+    const byDay = {};
+    for (let d = 1; d <= daysInMonth; d++) {
+      const key = `${month}-${String(d).padStart(2, '0')}`;
+      byDay[key] = 0;
+    }
+    for (const i of all) {
+      if (i.date && byDay[i.date] != null) byDay[i.date] += Number(i.amount) || 0;
+    }
+    const dailySeries = Object.entries(byDay).map(([date, amount]) => ({
+      date,
+      day: Number(date.slice(-2)),
+      amount: Math.round(amount),
+    }));
+    const peakDay = dailySeries.reduce((p, c) => (c.amount > p.amount ? c : p), { amount: 0 });
+
+    return {
+      total, count, byCat, topCategory, recurring, dailyAvg,
+      daysElapsed, daysInMonth, dailySeries, peakDay,
+    };
   }, [items, month]);
+
+  const categoryData = useMemo(() => {
+    return Object.entries(stats.byCat)
+      .sort((a, b) => b[1] - a[1])
+      .map(([name, value]) => ({ name, value: Math.round(value), color: CAT_COLOR[name] || CAT_COLOR.Other }));
+  }, [stats.byCat]);
 
   function submit(e) {
     e.preventDefault();
@@ -107,10 +132,7 @@ export default function Expenses() {
       payment_method: form.payment_method,
       merchant: form.merchant.trim(),
       recurring: !!form.recurring,
-      tags: form.tagsText
-        .split(',')
-        .map((t) => t.trim())
-        .filter(Boolean),
+      tags: form.tagsText.split(',').map((t) => t.trim()).filter(Boolean),
     };
     if (editingId) {
       update(editingId, payload);
@@ -118,7 +140,7 @@ export default function Expenses() {
     } else {
       add(payload);
     }
-    setForm({ ...empty, date: form.date }); // keep date to make rapid entry easier
+    setForm({ ...empty, date: form.date });
   }
 
   function startEdit(it) {
@@ -141,7 +163,6 @@ export default function Expenses() {
     setForm({ ...empty, date: todayISO() });
   }
 
-  // Group displayed items by date for cleaner reading
   const groupedByDate = useMemo(() => {
     const out = {};
     for (const it of monthItems) {
@@ -152,201 +173,270 @@ export default function Expenses() {
   }, [monthItems]);
 
   const isCurrent = month === currentMonthKey();
+  const monthLabelShort = formatMonthKey(month).split(' ')[0];
 
   return (
     <div>
       <PageHeader
-        title="Expense Tracker"
+        icon={<Wallet className="w-5 h-5" />}
+        title="Expenses"
         subtitle="Daily spending, monthly totals, where the money goes."
         action={
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => setMonth(shiftMonth(month, -1))}
-              className="px-3 py-1.5 border border-slate-300 rounded-lg text-sm bg-white hover:border-slate-400"
-            >
-              ←
-            </button>
-            <div className="px-3 py-1.5 border border-slate-300 rounded-lg text-sm bg-white min-w-[160px] text-center">
+            <Button variant="secondary" size="sm" iconOnly onClick={() => setMonth(shiftMonth(month, -1))} aria-label="Previous month">
+              <ChevronLeft className="w-4 h-4" />
+            </Button>
+            <div className="glass rounded-xl px-3 py-1.5 text-sm font-semibold text-ink min-w-[160px] text-center">
               {formatMonthKey(month)}
-              {isCurrent && <span className="ml-2 text-xs text-emerald-600 font-medium">current</span>}
+              {isCurrent && <span className="ml-2 text-[10px] text-emerald-600 dark:text-emerald-400 font-bold uppercase tracking-wider">now</span>}
             </div>
-            <button
-              onClick={() => setMonth(shiftMonth(month, 1))}
-              className="px-3 py-1.5 border border-slate-300 rounded-lg text-sm bg-white hover:border-slate-400"
-            >
-              →
-            </button>
+            <Button variant="secondary" size="sm" iconOnly onClick={() => setMonth(shiftMonth(month, 1))} aria-label="Next month">
+              <ChevronRight className="w-4 h-4" />
+            </Button>
           </div>
         }
       />
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-        <StatCard label="Total this month" value={formatINR(stats.total)} />
-        <StatCard label="Transactions" value={stats.count} />
-        <StatCard
+      {/* KPI strip */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-5 sm:mb-6">
+        <Stat
+          label={`${monthLabelShort} total`}
+          value={formatINR(stats.total)}
+          tone="indigo"
+          icon={<Wallet className="w-4 h-4" />}
+          delta={{ kind: 'neutral', text: `${stats.count} txn${stats.count === 1 ? '' : 's'}` }}
+          className="animate-fade-up"
+        />
+        <Stat
           label="Daily average"
           value={formatINR(stats.dailyAvg)}
-          sub={`over ${stats.daysElapsed} day(s)`}
+          tone="brand"
+          icon={<TrendingUp className="w-4 h-4" />}
+          delta={{ kind: 'neutral', text: `over ${stats.daysElapsed} day${stats.daysElapsed === 1 ? '' : 's'}` }}
+          className="animate-fade-up [animation-delay:60ms]"
         />
-        <StatCard
+        <Stat
           label="Top category"
-          value={stats.topCategory[0]}
-          sub={formatINR(stats.topCategory[1])}
+          value={stats.topCategory[0] === '—' ? '—' : trim(stats.topCategory[0], 14)}
+          tone="violet"
+          icon={<TagIcon className="w-4 h-4" />}
+          delta={{ kind: 'neutral', text: formatINR(stats.topCategory[1]) }}
+          className="animate-fade-up [animation-delay:120ms]"
+        />
+        <Stat
+          label="Recurring"
+          value={formatINR(stats.recurring)}
+          tone="amber"
+          icon={<Repeat className="w-4 h-4" />}
+          delta={{ kind: 'neutral', text: stats.total > 0 ? `${Math.round((stats.recurring / stats.total) * 100)}% of spend` : 'none yet' }}
+          className="animate-fade-up [animation-delay:180ms]"
         />
       </div>
 
-      {stats.count > 0 && (
-        <div className="bg-white border border-slate-200 rounded-xl p-4 mb-6">
-          <div className="text-sm font-semibold text-slate-700 mb-3">
-            Category breakdown
-          </div>
-          <ul className="space-y-2">
-            {Object.entries(stats.byCat)
-              .sort((a, b) => b[1] - a[1])
-              .map(([cat, amt]) => {
-                const pct = stats.total > 0 ? (amt / stats.total) * 100 : 0;
-                return (
-                  <li key={cat}>
-                    <div className="flex items-center justify-between text-xs text-slate-700 mb-1">
-                      <span className="font-medium">{cat}</span>
-                      <span className="text-slate-500">
-                        {formatINR(amt)} · {pct.toFixed(0)}%
-                      </span>
-                    </div>
-                    <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-brand-500"
-                        style={{ width: pct + '%' }}
-                      />
-                    </div>
-                  </li>
-                );
-              })}
-          </ul>
-          {stats.recurring > 0 && (
-            <div className="mt-3 text-xs text-slate-500">
-              Of which recurring (subscriptions): <span className="font-medium text-slate-700">{formatINR(stats.recurring)}</span>
+      {/* Charts row */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+        <Card className="lg:col-span-2 animate-fade-up [animation-delay:220ms]" hover={false}>
+          <CardHeader
+            icon={<TrendingUp className="w-4 h-4" />}
+            iconTone="brand"
+            title="Daily spend"
+            subtitle={`${formatMonthKey(month)} · peak day ${stats.peakDay.amount > 0 ? `${stats.peakDay.day} (${formatINR(stats.peakDay.amount)})` : '—'}`}
+          />
+          {stats.dailySeries.every((d) => d.amount === 0) ? (
+            <div className="h-[200px] grid place-items-center text-sm text-ink-faint">
+              No transactions yet this month.
+            </div>
+          ) : (
+            <div className="h-[200px] -mx-2">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={stats.dailySeries} margin={{ top: 10, right: 8, left: -10, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="barGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#3b6dff" stopOpacity={0.95} />
+                      <stop offset="100%" stopColor="#9b6bff" stopOpacity={0.75} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 6" vertical={false} stroke="currentColor" className="text-edge-strong/15" />
+                  <XAxis dataKey="day" stroke="currentColor" className="text-ink-faint" fontSize={11} tickLine={false} axisLine={false} interval={2} />
+                  <YAxis stroke="currentColor" className="text-ink-faint" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v} />
+                  <Tooltip content={<DailyTooltip />} cursor={{ fill: 'rgba(155,107,255,0.08)' }} />
+                  <Bar dataKey="amount" fill="url(#barGrad)" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
             </div>
           )}
-        </div>
-      )}
+        </Card>
 
-      <form
-        onSubmit={submit}
-        className={
-          'bg-white border rounded-xl p-4 mb-6 grid grid-cols-1 md:grid-cols-6 gap-3 ' +
-          (editingId ? 'border-brand-500' : 'border-slate-200')
-        }
-      >
-        {editingId && (
-          <div className="md:col-span-6 text-sm text-brand-700 font-medium">
-            Editing expense — make your changes and click Save.
-          </div>
-        )}
-        <input
-          type="date"
-          className="px-3 py-2 border border-slate-300 rounded-lg text-sm"
-          value={form.date}
-          onChange={(e) => setForm({ ...form, date: e.target.value })}
-        />
-        <input
-          type="number"
-          step="0.01"
-          min="0"
-          className="px-3 py-2 border border-slate-300 rounded-lg text-sm"
-          placeholder="Amount (₹)"
-          value={form.amount}
-          onChange={(e) => setForm({ ...form, amount: e.target.value })}
-        />
-        <select
-          className="px-3 py-2 border border-slate-300 rounded-lg text-sm"
-          value={form.category}
-          onChange={(e) => setForm({ ...form, category: e.target.value })}
-        >
-          {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
-        </select>
-        <select
-          className="px-3 py-2 border border-slate-300 rounded-lg text-sm"
-          value={form.payment_method}
-          onChange={(e) => setForm({ ...form, payment_method: e.target.value })}
-        >
-          {PAYMENT_METHODS.map((p) => <option key={p}>{p}</option>)}
-        </select>
-        <input
-          className="md:col-span-2 px-3 py-2 border border-slate-300 rounded-lg text-sm"
-          placeholder="Merchant (e.g. Swiggy)"
-          value={form.merchant}
-          onChange={(e) => setForm({ ...form, merchant: e.target.value })}
-        />
-        <input
-          className="md:col-span-3 px-3 py-2 border border-slate-300 rounded-lg text-sm"
-          placeholder="Description / note"
-          value={form.description}
-          onChange={(e) => setForm({ ...form, description: e.target.value })}
-        />
-        <input
-          className="md:col-span-2 px-3 py-2 border border-slate-300 rounded-lg text-sm"
-          placeholder="Tags (comma-separated, e.g. family, trip)"
-          value={form.tagsText}
-          onChange={(e) => setForm({ ...form, tagsText: e.target.value })}
-        />
-        <label className="flex items-center gap-2 text-sm text-slate-700 px-3">
-          <input
-            type="checkbox"
-            className="h-4 w-4 accent-brand-500"
-            checked={form.recurring}
-            onChange={(e) => setForm({ ...form, recurring: e.target.checked })}
+        <Card className="animate-fade-up [animation-delay:280ms]" hover={false}>
+          <CardHeader
+            icon={<TagIcon className="w-4 h-4" />}
+            iconTone="violet"
+            title="By category"
+            subtitle={`${categoryData.length} categor${categoryData.length === 1 ? 'y' : 'ies'}`}
           />
-          Recurring
-        </label>
-        <div className="md:col-span-6 flex gap-2">
-          <button
-            type="submit"
-            className="px-4 py-2 bg-brand-500 hover:bg-brand-600 text-white rounded-lg text-sm font-medium"
-          >
-            {editingId ? 'Save changes' : 'Add expense'}
-          </button>
-          {editingId && (
-            <button
-              type="button"
-              onClick={cancel}
-              className="px-3 py-2 border border-slate-300 rounded-lg text-sm"
-            >
-              Cancel
-            </button>
+          {categoryData.length === 0 ? (
+            <div className="h-[200px] grid place-items-center text-sm text-ink-faint">
+              No data yet.
+            </div>
+          ) : (
+            <div className="flex items-center gap-3">
+              <div className="w-[120px] h-[140px] relative shrink-0">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={categoryData}
+                      dataKey="value"
+                      innerRadius={40}
+                      outerRadius={60}
+                      paddingAngle={2}
+                      strokeWidth={0}
+                    >
+                      {categoryData.map((entry, idx) => (
+                        <Cell key={idx} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip content={<CategoryTooltip total={stats.total} />} />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="absolute inset-0 grid place-items-center pointer-events-none">
+                  <div className="text-center">
+                    <div className="text-[10px] text-ink-faint font-semibold uppercase tracking-wider">Total</div>
+                    <div className="text-xs font-bold text-ink">{formatINR(stats.total)}</div>
+                  </div>
+                </div>
+              </div>
+              <ul className="flex-1 min-w-0 space-y-1.5">
+                {categoryData.slice(0, 5).map((c) => {
+                  const pct = stats.total > 0 ? (c.value / stats.total) * 100 : 0;
+                  return (
+                    <li key={c.name} className="text-xs flex items-center gap-2 min-w-0">
+                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: c.color }} />
+                      <span className="truncate text-ink-muted">{c.name}</span>
+                      <span className="ml-auto text-ink-faint shrink-0">{pct.toFixed(0)}%</span>
+                    </li>
+                  );
+                })}
+                {categoryData.length > 5 && (
+                  <li className="text-[11px] text-ink-faint pt-0.5">+{categoryData.length - 5} more</li>
+                )}
+              </ul>
+            </div>
           )}
-        </div>
-      </form>
-
-      <div className="bg-white border border-slate-200 rounded-xl p-3 mb-4 grid grid-cols-1 md:grid-cols-3 gap-3">
-        <select
-          className="px-3 py-2 border border-slate-300 rounded-lg text-sm"
-          value={categoryFilter}
-          onChange={(e) => setCategoryFilter(e.target.value)}
-        >
-          <option value="all">All categories</option>
-          {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
-        </select>
-        <select
-          className="px-3 py-2 border border-slate-300 rounded-lg text-sm"
-          value={paymentFilter}
-          onChange={(e) => setPaymentFilter(e.target.value)}
-        >
-          <option value="all">All payment methods</option>
-          {PAYMENT_METHODS.map((p) => <option key={p}>{p}</option>)}
-        </select>
-        <input
-          className="px-3 py-2 border border-slate-300 rounded-lg text-sm"
-          placeholder="Search description / merchant / tag"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
+        </Card>
       </div>
 
+      {/* Add / Edit form */}
+      <Card
+        className={cx('mb-5 animate-fade-up [animation-delay:340ms]', editingId && 'ring-2 ring-brand-500/40')}
+        hover={false}
+      >
+        <CardHeader
+          icon={editingId ? <Pencil className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+          iconTone={editingId ? 'amber' : 'emerald'}
+          title={editingId ? 'Editing expense' : 'Add expense'}
+          subtitle={editingId ? 'Make your changes and save.' : 'Quick entry — date, amount, category required.'}
+          action={editingId && (
+            <Button variant="ghost" size="sm" onClick={cancel}>
+              <XIcon className="w-4 h-4" /> Cancel
+            </Button>
+          )}
+        />
+        <form onSubmit={submit} className="grid grid-cols-1 md:grid-cols-6 gap-3">
+          <div className="md:col-span-2">
+            <Label>Date</Label>
+            <Input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
+          </div>
+          <div className="md:col-span-2">
+            <Label>Amount (₹)</Label>
+            <Input type="number" step="0.01" min="0" placeholder="0.00" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
+          </div>
+          <div className="md:col-span-2">
+            <Label>Category</Label>
+            <Select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
+              {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
+            </Select>
+          </div>
+          <div className="md:col-span-2">
+            <Label>Payment</Label>
+            <Select value={form.payment_method} onChange={(e) => setForm({ ...form, payment_method: e.target.value })}>
+              {PAYMENT_METHODS.map((p) => <option key={p}>{p}</option>)}
+            </Select>
+          </div>
+          <div className="md:col-span-2">
+            <Label>Merchant</Label>
+            <Input placeholder="e.g. Swiggy" value={form.merchant} onChange={(e) => setForm({ ...form, merchant: e.target.value })} />
+          </div>
+          <div className="md:col-span-2">
+            <Label>Tags</Label>
+            <Input placeholder="family, trip" value={form.tagsText} onChange={(e) => setForm({ ...form, tagsText: e.target.value })} />
+          </div>
+          <div className="md:col-span-6">
+            <Label>Description</Label>
+            <Input placeholder="Optional note" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+          </div>
+          <div className="md:col-span-6 flex items-center justify-between gap-3 flex-wrap">
+            <label className="flex items-center gap-2 text-sm text-ink-muted cursor-pointer select-none">
+              <input
+                type="checkbox"
+                className="h-4 w-4 accent-brand-500 rounded"
+                checked={form.recurring}
+                onChange={(e) => setForm({ ...form, recurring: e.target.checked })}
+              />
+              <Repeat className="w-3.5 h-3.5" /> Recurring expense
+            </label>
+            <Button type="submit" variant="primary" size="md">
+              {editingId ? 'Save changes' : (<><Plus className="w-4 h-4" /> Add expense</>)}
+            </Button>
+          </div>
+        </form>
+      </Card>
+
+      {/* Filter bar */}
+      <Card className="mb-4 animate-fade-up [animation-delay:400ms]" hover={false} padded={false}>
+        <div className="p-3 grid grid-cols-1 md:grid-cols-12 gap-2 items-center">
+          <div className="md:col-span-5">
+            <Input
+              leadingIcon={<Search className="w-4 h-4" />}
+              placeholder="Search description, merchant, tag…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          <div className="md:col-span-3">
+            <Select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
+              <option value="all">All categories</option>
+              {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
+            </Select>
+          </div>
+          <div className="md:col-span-3">
+            <Select value={paymentFilter} onChange={(e) => setPaymentFilter(e.target.value)}>
+              <option value="all">All payment methods</option>
+              {PAYMENT_METHODS.map((p) => <option key={p}>{p}</option>)}
+            </Select>
+          </div>
+          <div className="md:col-span-1 flex justify-end">
+            {(categoryFilter !== 'all' || paymentFilter !== 'all' || search) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                iconOnly
+                onClick={() => { setCategoryFilter('all'); setPaymentFilter('all'); setSearch(''); }}
+                aria-label="Clear filters"
+                title="Clear filters"
+              >
+                <XIcon className="w-4 h-4" />
+              </Button>
+            )}
+          </div>
+        </div>
+      </Card>
+
+      {/* List grouped by day */}
       {monthItems.length === 0 ? (
         <EmptyState
-          title={'No expenses for ' + formatMonthKey(month)}
-          hint="Add your first expense above."
+          icon={<Filter className="w-5 h-5" />}
+          title={`No expenses for ${formatMonthKey(month)}`}
+          hint={items.length === 0 ? 'Add your first expense above.' : 'Try clearing filters to see more.'}
         />
       ) : (
         <div className="space-y-4">
@@ -354,61 +444,50 @@ export default function Expenses() {
             const dayTotal = list.reduce((s, i) => s + (Number(i.amount) || 0), 0);
             return (
               <section key={date}>
-                <div className="flex items-center justify-between mb-2">
-                  <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide">
+                <div className="flex items-center justify-between mb-2 px-1">
+                  <h2 className="text-[11px] font-bold text-ink-faint uppercase tracking-wider">
                     {formatDate(date)}
                   </h2>
-                  <span className="text-xs text-slate-500">
-                    {list.length} txn · {formatINR(dayTotal)}
+                  <span className="text-[11px] text-ink-faint">
+                    {list.length} txn · <span className="font-semibold text-ink">{formatINR(dayTotal)}</span>
                   </span>
                 </div>
-                <ul className="bg-white border border-slate-200 rounded-xl divide-y divide-slate-100">
-                  {list.map((it) => (
-                    <li key={it.id} className="flex items-start gap-3 px-4 py-3">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="font-medium text-slate-900">
-                            {formatINR(it.amount)}
-                          </span>
-                          <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">
-                            {it.category}
-                          </span>
-                          <span className="text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">
-                            {it.payment_method}
-                          </span>
-                          {it.recurring && (
-                            <span className="text-xs px-2 py-0.5 rounded-full bg-violet-100 text-violet-700">
-                              Recurring
-                            </span>
+                <Card padded={false} hover={false}>
+                  <ul className="divide-y divide-edge/5">
+                    {list.map((it) => (
+                      <li key={it.id} className="flex items-start gap-3 px-4 py-3 hover:bg-surface-strong/30 transition-colors">
+                        <div
+                          className="w-1 self-stretch rounded-full shrink-0"
+                          style={{ background: CAT_COLOR[it.category] || CAT_COLOR.Other }}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="font-bold text-ink">{formatINR(it.amount)}</span>
+                            <Badge tone="slate" size="sm">{it.category}</Badge>
+                            <Badge tone="sky" size="sm">{it.payment_method}</Badge>
+                            {it.recurring && <Badge tone="violet" size="sm">Recurring</Badge>}
+                            {Array.isArray(it.tags) && it.tags.map((t) => (
+                              <Badge key={t} tone="amber" size="sm">#{t}</Badge>
+                            ))}
+                          </div>
+                          {(it.merchant || it.description) && (
+                            <div className="text-sm text-ink-muted mt-1 truncate">
+                              {it.merchant && <span className="font-semibold text-ink">{it.merchant}</span>}
+                              {it.merchant && it.description && <span> · </span>}
+                              {it.description}
+                            </div>
                           )}
-                          {Array.isArray(it.tags) && it.tags.map((t) => (
-                            <span key={t} className="text-xs px-2 py-0.5 rounded-full bg-amber-50 text-amber-800">
-                              #{t}
-                            </span>
-                          ))}
                         </div>
-                        <div className="text-sm text-slate-700 mt-1">
-                          {it.merchant && <span className="font-medium">{it.merchant}</span>}
-                          {it.merchant && it.description && <span> · </span>}
-                          {it.description}
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => startEdit(it)}
-                        className="text-slate-400 hover:text-slate-700 text-sm px-2"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => remove(it.id)}
-                        className="text-slate-400 hover:text-red-600 text-sm px-2"
-                        aria-label="Delete"
-                      >
-                        ✕
-                      </button>
-                    </li>
-                  ))}
-                </ul>
+                        <Button variant="ghost" size="sm" iconOnly onClick={() => startEdit(it)} aria-label="Edit">
+                          <Pencil className="w-3.5 h-3.5" />
+                        </Button>
+                        <Button variant="ghost" size="sm" iconOnly onClick={() => remove(it.id)} aria-label="Delete">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                </Card>
               </section>
             );
           })}
@@ -418,17 +497,41 @@ export default function Expenses() {
   );
 }
 
-function StatCard({ label, value, sub }) {
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function formatINR(n) {
+  const v = Number(n) || 0;
+  if (v === 0) return '₹0';
+  if (v >= 100000) return `₹${(v / 100000).toFixed(2)}L`;
+  return '₹' + v.toLocaleString('en-IN', { maximumFractionDigits: 2 });
+}
+
+function trim(s, n) {
+  if (!s) return s;
+  return s.length > n ? s.slice(0, n - 1) + '…' : s;
+}
+
+function DailyTooltip({ active, payload }) {
+  if (!active || !payload?.[0]) return null;
+  const d = payload[0].payload;
   return (
-    <div className="bg-white border border-slate-200 rounded-xl p-4">
-      <div className="text-xs text-slate-500 mb-1">{label}</div>
-      <div className="text-lg font-semibold text-slate-900 truncate">{value}</div>
-      {sub && <div className="text-xs text-slate-500 mt-0.5">{sub}</div>}
+    <div className="glass-strong rounded-xl px-3 py-2 shadow-glass text-xs">
+      <div className="font-semibold text-ink">Day {d.day}</div>
+      <div className="text-ink-muted">{formatINR(d.amount)}</div>
     </div>
   );
 }
 
-function formatINR(n) {
-  const v = Number(n) || 0;
-  return '₹' + v.toLocaleString('en-IN', { maximumFractionDigits: 2 });
+function CategoryTooltip({ active, payload, total }) {
+  if (!active || !payload?.[0]) return null;
+  const d = payload[0].payload;
+  const pct = total > 0 ? (d.value / total) * 100 : 0;
+  return (
+    <div className="glass-strong rounded-xl px-3 py-2 shadow-glass text-xs">
+      <div className="font-semibold text-ink flex items-center gap-2">
+        <span className="w-2 h-2 rounded-full" style={{ background: d.color }} />
+        {d.name}
+      </div>
+      <div className="text-ink-muted">{formatINR(d.value)} · {pct.toFixed(0)}%</div>
+    </div>
+  );
 }

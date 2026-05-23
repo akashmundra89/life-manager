@@ -1,107 +1,140 @@
 import { NavLink } from 'react-router-dom';
+import {
+  LayoutDashboard, ShoppingCart, CalendarDays, Briefcase, Star, CalendarCheck,
+  Wallet, TrendingUp, Newspaper, Trophy, Sparkles, X as XIcon,
+  Sun, Moon, LogOut,
+} from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { isSupabaseConfigured } from '../lib/supabase';
+import { cx } from '../lib/cx.js';
 
-const links = [
-  { to: '/', label: 'Dashboard', icon: '⌂' },
-  { to: '/grocery', label: 'Grocery List', icon: '\u{1F6D2}' },
-  { to: '/events', label: 'Upcoming Events', icon: '\u{1F4C5}' },
-  { to: '/office', label: 'Office Work', icon: '\u{1F4BC}' },
-  { to: '/key-dates', label: 'Key Dates', icon: '⭐' },
-  { to: '/monthly', label: 'Monthly Tasks', icon: '\u{1F5D3}' },
-  { to: '/expenses', label: 'Expense Tracker', icon: '\u{1F4B0}' },
-  { to: '/ipo', label: 'Upcoming IPOs', icon: '\u{1F4C8}' },
-  { to: '/news', label: 'India Headlines', icon: '\u{1F4F0}' },
-  { to: '/cricket', label: 'Cricket Scores', icon: '\u{1F3CF}' },
+const SECTIONS = [
+  { label: 'Overview', items: [
+    { to: '/',          label: 'Dashboard',  Icon: LayoutDashboard },
+  ]},
+  { label: 'Daily', items: [
+    { to: '/grocery',   label: 'Grocery',    Icon: ShoppingCart },
+    { to: '/events',    label: 'Events',     Icon: CalendarDays },
+    { to: '/office',    label: 'Office',     Icon: Briefcase },
+  ]},
+  { label: 'Planning', items: [
+    { to: '/key-dates', label: 'Key dates',  Icon: Star },
+    { to: '/monthly',   label: 'Monthly',    Icon: CalendarCheck },
+    { to: '/expenses',  label: 'Expenses',   Icon: Wallet },
+  ]},
+  { label: 'Discover', items: [
+    { to: '/ipo',       label: 'IPOs',       Icon: TrendingUp },
+    { to: '/news',      label: 'Headlines',  Icon: Newspaper },
+    { to: '/cricket',   label: 'Cricket',    Icon: Trophy },
+  ]},
 ];
 
 export default function Sidebar({ open, onClose }) {
   const auth = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const user = auth?.user;
   const guestMode = auth?.guestMode;
   const signOut = auth?.signOut;
   const exitGuestMode = auth?.exitGuestMode;
 
+  const userInitial = user?.email?.[0]?.toUpperCase() ?? (guestMode ? 'G' : 'A');
+  const userLabel = user?.email ?? (guestMode ? 'Guest mode' : 'Local data');
+
   return (
     <aside
-      className={[
+      className={cx(
         'fixed lg:static inset-y-0 left-0 z-30',
-        'w-64 shrink-0 bg-slate-900 text-slate-100 flex flex-col',
-        'transition-transform duration-200 ease-in-out',
+        'w-64 shrink-0 glass border-r border-edge/10 text-ink flex flex-col',
+        'transition-transform duration-300 ease-spring',
         open ? 'translate-x-0' : '-translate-x-full',
         'lg:translate-x-0',
-      ].join(' ')}
+      )}
     >
-      {/* Header */}
-      <div className="px-5 py-5 border-b border-slate-800 flex items-center justify-between">
-        <div>
-          <div className="text-base font-semibold">Life Manager</div>
-          <div className="text-xs text-slate-400 mt-0.5">Your daily command center</div>
+      <div className="px-4 py-4 flex items-center gap-3 border-b border-edge/10">
+        <div className="grid place-items-center w-9 h-9 rounded-xl bg-grad-brand text-white shadow-glow-brand">
+          <Sparkles className="w-4 h-4" />
         </div>
-        {/* Close button — mobile only */}
+        <div className="min-w-0 flex-1">
+          <div className="text-sm font-semibold leading-tight">Life Manager</div>
+          <div className="text-[11px] text-ink-faint leading-tight mt-0.5">Your command center</div>
+        </div>
         <button
           onClick={onClose}
-          className="lg:hidden p-1.5 rounded hover:bg-slate-700 transition-colors text-slate-400 hover:text-white"
+          className="lg:hidden grid place-items-center w-7 h-7 rounded-lg text-ink-faint hover:text-ink hover:bg-surface-strong/60"
           aria-label="Close menu"
         >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
+          <XIcon className="w-4 h-4" />
         </button>
       </div>
 
-      {/* Nav links */}
-      <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto">
-        {links.map((l) => (
-          <NavLink
-            key={l.to}
-            to={l.to}
-            end={l.to === '/'}
-            onClick={onClose}
-            className={({ isActive }) =>
-              [
-                'flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors',
-                isActive
-                  ? 'bg-brand-500 text-white shadow'
-                  : 'text-slate-300 hover:bg-slate-800 hover:text-white',
-              ].join(' ')
-            }
-          >
-            <span className="text-base w-5 text-center">{l.icon}</span>
-            <span>{l.label}</span>
-          </NavLink>
+      <nav className="flex-1 px-3 py-3 overflow-y-auto">
+        {SECTIONS.map((sec) => (
+          <div key={sec.label} className="mb-3">
+            <div className="text-[10.5px] font-semibold uppercase tracking-[0.08em] text-ink-faint px-3 mb-1">
+              {sec.label}
+            </div>
+            <div className="space-y-0.5">
+              {sec.items.map(({ to, label, Icon }) => (
+                <NavLink
+                  key={to}
+                  to={to}
+                  end={to === '/'}
+                  onClick={onClose}
+                  className={({ isActive }) =>
+                    cx(
+                      'flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-colors',
+                      isActive
+                        ? 'bg-grad-brand-soft text-ink ring-1 ring-inset ring-edge/10'
+                        : 'text-ink-muted hover:bg-surface-strong/40 hover:text-ink',
+                    )
+                  }
+                >
+                  <Icon className="w-4 h-4 shrink-0" />
+                  <span>{label}</span>
+                </NavLink>
+              ))}
+            </div>
+          </div>
         ))}
       </nav>
 
-      {/* Footer */}
-      <div className="px-4 py-4 border-t border-slate-800">
-        {isSupabaseConfigured ? (
-          guestMode ? (
-            <div>
-              <div className="text-xs text-amber-400 font-medium mb-1 px-1">Guest mode</div>
-              <div className="text-xs text-slate-400 mb-2 px-1">Data saved on this device only.</div>
-              <button
-                onClick={exitGuestMode}
-                className="w-full text-left text-xs text-slate-300 hover:text-white px-2 py-1.5 rounded-lg hover:bg-slate-800 transition-colors"
-              >
-                Sign in to sync →
-              </button>
+      <div className="px-3 py-3 border-t border-edge/10 space-y-2">
+        <div className="flex items-center gap-2 px-2 py-2 rounded-xl glass-soft">
+          <div className="grid place-items-center w-8 h-8 rounded-full bg-gradient-to-br from-rose-400 to-amber-400 text-white text-xs font-bold">
+            {userInitial}
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-xs font-semibold truncate text-ink">{userLabel}</div>
+            <div className="text-[10.5px] text-ink-faint">
+              {isSupabaseConfigured ? (guestMode ? 'On this device only' : user ? 'Synced' : 'Connecting…') : 'Local · Supabase ready'}
             </div>
-          ) : user ? (
-            <div>
-              <div className="text-xs text-slate-400 truncate mb-2 px-1">{user.email}</div>
-              <button
-                onClick={signOut}
-                className="w-full text-left text-xs text-slate-400 hover:text-slate-200 px-2 py-1.5 rounded-lg hover:bg-slate-800 transition-colors"
-              >
-                Sign out
-              </button>
-            </div>
-          ) : (
-            <div className="text-xs text-slate-500 px-1">Connecting…</div>
-          )
-        ) : (
-          <div className="text-xs text-slate-500 px-1">Local data · Supabase ready</div>
+          </div>
+          <button
+            onClick={toggleTheme}
+            className="grid place-items-center w-8 h-8 rounded-lg text-ink-faint hover:text-ink hover:bg-surface-strong/60"
+            aria-label="Toggle theme"
+            title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          >
+            {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          </button>
+        </div>
+
+        {isSupabaseConfigured && guestMode && (
+          <button
+            onClick={exitGuestMode}
+            className="w-full text-left text-xs px-3 py-2 rounded-xl text-ink-muted hover:bg-surface-strong/60 hover:text-ink"
+          >
+            Sign in to sync &rarr;
+          </button>
+        )}
+        {isSupabaseConfigured && user && (
+          <button
+            onClick={signOut}
+            className="w-full flex items-center gap-2 text-xs px-3 py-2 rounded-xl text-ink-muted hover:bg-surface-strong/60 hover:text-ink"
+          >
+            <LogOut className="w-3.5 h-3.5" /> Sign out
+          </button>
         )}
       </div>
     </aside>

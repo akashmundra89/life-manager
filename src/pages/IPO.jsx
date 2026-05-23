@@ -1,31 +1,23 @@
 import { useMemo, useState } from 'react';
+import {
+  TrendingUp, Plus, Pencil, Trash2, X as XIcon, ExternalLink, Info,
+} from 'lucide-react';
 import PageHeader from '../components/PageHeader.jsx';
-import EmptyState from '../components/EmptyState.jsx';
+import { Card, CardHeader, Badge, Button, EmptyState } from '../components/ui';
+import { Input, Select, Label } from '../components/ui/Input.jsx';
 import useLocalCollection from '../hooks/useLocalCollection.js';
 import { formatDate, daysUntil } from '../lib/dateUtils.js';
-
-// Manual IPO tracker.
-// There's no reliable free public API for live GMP, so we let the user
-// log IPOs themselves and update the GMP daily. Help text below links
-// to common sources where you can look it up.
+import { cx } from '../lib/cx.js';
 
 const STATUSES = ['Upcoming', 'Open', 'Closed', 'Listed'];
 
-const SEED = [];
 const empty = {
-  name: '',
-  open_date: '',
-  close_date: '',
-  listing_date: '',
-  price_band: '',
-  gmp: '',
-  status: 'Upcoming',
-  link: '',
-  notes: '',
+  name: '', open_date: '', close_date: '', listing_date: '',
+  price_band: '', gmp: '', status: 'Upcoming', link: '', notes: '',
 };
 
 export default function IPO() {
-  const { items, add, update, remove } = useLocalCollection('ipos', SEED);
+  const { items, add, update, remove } = useLocalCollection('ipos', []);
   const [form, setForm] = useState(empty);
   const [editingId, setEditingId] = useState(null);
   const [statusFilter, setStatusFilter] = useState('all');
@@ -51,15 +43,9 @@ export default function IPO() {
   function startEdit(it) {
     setEditingId(it.id);
     setForm({
-      name: it.name || '',
-      open_date: it.open_date || '',
-      close_date: it.close_date || '',
-      listing_date: it.listing_date || '',
-      price_band: it.price_band || '',
-      gmp: it.gmp || '',
-      status: it.status || 'Upcoming',
-      link: it.link || '',
-      notes: it.notes || '',
+      name: it.name || '', open_date: it.open_date || '', close_date: it.close_date || '',
+      listing_date: it.listing_date || '', price_band: it.price_band || '', gmp: it.gmp || '',
+      status: it.status || 'Upcoming', link: it.link || '', notes: it.notes || '',
     });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
@@ -72,140 +58,98 @@ export default function IPO() {
   return (
     <div>
       <PageHeader
+        icon={<TrendingUp className="w-5 h-5" />}
         title="Upcoming IPOs"
         subtitle="Track issues, price bands, and current GMP. Update the GMP yourself daily."
       />
 
-      <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6 text-sm text-amber-900">
-        <div className="font-medium mb-1">Where to check live GMP</div>
-        <ul className="list-disc pl-5 space-y-0.5">
-          <li>
-            <a className="underline" href="https://www.chittorgarh.com/ipo/ipo_gmp.asp" target="_blank" rel="noreferrer">
-              Chittorgarh — IPO GMP
-            </a>
-          </li>
-          <li>
-            <a className="underline" href="https://ipowatch.in/ipo-grey-market-premium-latest-ipo-gmp/" target="_blank" rel="noreferrer">
-              IPO Watch — Grey Market Premium
-            </a>
-          </li>
-          <li>
-            <a className="underline" href="https://www.investorgain.com/ipo/" target="_blank" rel="noreferrer">
-              InvestorGain — IPO Calendar
-            </a>
-          </li>
-        </ul>
-        <div className="mt-2 text-xs text-amber-800">
-          No public IPO API gives reliable real-time GMP, so this page is a manual tracker — note the GMP from one of the sources above and update it here.
+      <Card className="mb-5 animate-fade-up" hover={false}>
+        <CardHeader
+          icon={<Info className="w-4 h-4" />}
+          iconTone="amber"
+          title="Where to check live GMP"
+          subtitle="No public IPO API has reliable real-time GMP — this is a manual tracker."
+        />
+        <div className="text-sm text-ink-muted space-y-1">
+          <a className="block text-brand-600 dark:text-brand-300 hover:underline" href="https://www.chittorgarh.com/ipo/ipo_gmp.asp" target="_blank" rel="noreferrer">→ Chittorgarh — IPO GMP</a>
+          <a className="block text-brand-600 dark:text-brand-300 hover:underline" href="https://ipowatch.in/ipo-grey-market-premium-latest-ipo-gmp/" target="_blank" rel="noreferrer">→ IPO Watch — Grey Market Premium</a>
+          <a className="block text-brand-600 dark:text-brand-300 hover:underline" href="https://www.investorgain.com/ipo/" target="_blank" rel="noreferrer">→ InvestorGain — IPO Calendar</a>
         </div>
-      </div>
+      </Card>
 
-      <form
-        onSubmit={submit}
-        className={
-          'bg-white border rounded-xl p-4 mb-6 grid grid-cols-1 md:grid-cols-6 gap-3 ' +
-          (editingId ? 'border-brand-500' : 'border-slate-200')
-        }
+      <Card
+        className={cx('mb-5 animate-fade-up [animation-delay:60ms]', editingId && 'ring-2 ring-brand-500/40')}
+        hover={false}
       >
-        {editingId && (
-          <div className="md:col-span-6 text-sm text-brand-700 font-medium">
-            Editing IPO — make your changes and click Save.
-          </div>
-        )}
-        <input
-          className="md:col-span-3 px-3 py-2 border border-slate-300 rounded-lg text-sm"
-          placeholder="IPO name (e.g. ABC Industries Ltd)"
-          value={form.name}
-          onChange={(e) => setForm({ ...form, name: e.target.value })}
-        />
-        <input
-          className="md:col-span-2 px-3 py-2 border border-slate-300 rounded-lg text-sm"
-          placeholder="Price band (e.g. ₹105 – ₹110)"
-          value={form.price_band}
-          onChange={(e) => setForm({ ...form, price_band: e.target.value })}
-        />
-        <select
-          className="px-3 py-2 border border-slate-300 rounded-lg text-sm"
-          value={form.status}
-          onChange={(e) => setForm({ ...form, status: e.target.value })}
-        >
-          {STATUSES.map((s) => <option key={s}>{s}</option>)}
-        </select>
-        <label className="text-xs text-slate-500 md:col-span-2">
-          Open date
-          <input
-            type="date"
-            className="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
-            value={form.open_date}
-            onChange={(e) => setForm({ ...form, open_date: e.target.value })}
-          />
-        </label>
-        <label className="text-xs text-slate-500 md:col-span-2">
-          Close date
-          <input
-            type="date"
-            className="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
-            value={form.close_date}
-            onChange={(e) => setForm({ ...form, close_date: e.target.value })}
-          />
-        </label>
-        <label className="text-xs text-slate-500 md:col-span-2">
-          Listing date
-          <input
-            type="date"
-            className="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
-            value={form.listing_date}
-            onChange={(e) => setForm({ ...form, listing_date: e.target.value })}
-          />
-        </label>
-        <input
-          className="md:col-span-2 px-3 py-2 border border-slate-300 rounded-lg text-sm"
-          placeholder="GMP (e.g. +45 or 'Nil')"
-          value={form.gmp}
-          onChange={(e) => setForm({ ...form, gmp: e.target.value })}
-        />
-        <input
-          className="md:col-span-4 px-3 py-2 border border-slate-300 rounded-lg text-sm"
-          placeholder="Reference link (optional)"
-          value={form.link}
-          onChange={(e) => setForm({ ...form, link: e.target.value })}
-        />
-        <input
-          className="md:col-span-6 px-3 py-2 border border-slate-300 rounded-lg text-sm"
-          placeholder="Notes (optional)"
-          value={form.notes}
-          onChange={(e) => setForm({ ...form, notes: e.target.value })}
-        />
-        <div className="md:col-span-6 flex gap-2">
-          <button
-            type="submit"
-            className="px-4 py-2 bg-brand-500 hover:bg-brand-600 text-white rounded-lg text-sm font-medium"
-          >
-            {editingId ? 'Save changes' : 'Add IPO'}
-          </button>
-          {editingId && (
-            <button
-              type="button"
-              onClick={cancel}
-              className="px-3 py-2 border border-slate-300 rounded-lg text-sm"
-            >
-              Cancel
-            </button>
+        <CardHeader
+          icon={editingId ? <Pencil className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+          iconTone={editingId ? 'amber' : 'emerald'}
+          title={editingId ? 'Editing IPO' : 'Add IPO'}
+          subtitle={editingId ? 'Make your changes and save.' : 'Name required. Dates and GMP help dashboard alerts.'}
+          action={editingId && (
+            <Button variant="ghost" size="sm" onClick={cancel}>
+              <XIcon className="w-4 h-4" /> Cancel
+            </Button>
           )}
-        </div>
-      </form>
+        />
+        <form onSubmit={submit} className="grid grid-cols-1 md:grid-cols-6 gap-3">
+          <div className="md:col-span-3">
+            <Label>Name</Label>
+            <Input autoFocus placeholder="e.g. ABC Industries Ltd" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+          </div>
+          <div className="md:col-span-2">
+            <Label>Price band</Label>
+            <Input placeholder="₹105 – ₹110" value={form.price_band} onChange={(e) => setForm({ ...form, price_band: e.target.value })} />
+          </div>
+          <div className="md:col-span-1">
+            <Label>Status</Label>
+            <Select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
+              {STATUSES.map((s) => <option key={s}>{s}</option>)}
+            </Select>
+          </div>
+          <div className="md:col-span-2">
+            <Label>Open date</Label>
+            <Input type="date" value={form.open_date} onChange={(e) => setForm({ ...form, open_date: e.target.value })} />
+          </div>
+          <div className="md:col-span-2">
+            <Label>Close date</Label>
+            <Input type="date" value={form.close_date} onChange={(e) => setForm({ ...form, close_date: e.target.value })} />
+          </div>
+          <div className="md:col-span-2">
+            <Label>Listing date</Label>
+            <Input type="date" value={form.listing_date} onChange={(e) => setForm({ ...form, listing_date: e.target.value })} />
+          </div>
+          <div className="md:col-span-2">
+            <Label>GMP</Label>
+            <Input placeholder="+45 or 'Nil'" value={form.gmp} onChange={(e) => setForm({ ...form, gmp: e.target.value })} />
+          </div>
+          <div className="md:col-span-4">
+            <Label>Reference link</Label>
+            <Input placeholder="https://…" value={form.link} onChange={(e) => setForm({ ...form, link: e.target.value })} />
+          </div>
+          <div className="md:col-span-6">
+            <Label>Notes</Label>
+            <Input placeholder="Optional" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+          </div>
+          <div className="md:col-span-6 flex justify-end">
+            <Button type="submit" variant="primary" size="md">
+              {editingId ? 'Save changes' : (<><Plus className="w-4 h-4" /> Add IPO</>)}
+            </Button>
+          </div>
+        </form>
+      </Card>
 
-      <div className="flex flex-wrap gap-2 mb-4 text-sm">
+      <div className="flex flex-wrap gap-2 mb-4 animate-fade-up [animation-delay:120ms]">
         {['all', ...STATUSES].map((s) => (
           <button
             key={s}
             onClick={() => setStatusFilter(s)}
-            className={
-              'px-3 py-1.5 rounded-full border ' +
-              (statusFilter === s
-                ? 'bg-slate-900 text-white border-slate-900'
-                : 'bg-white text-slate-700 border-slate-300 hover:border-slate-400')
-            }
+            className={cx(
+              'inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-sm font-medium transition-all',
+              statusFilter === s
+                ? 'bg-grad-brand text-white shadow-glow-brand'
+                : 'glass glass-hover text-ink-muted hover:text-ink',
+            )}
           >
             {s === 'all' ? 'All' : s}
           </button>
@@ -214,6 +158,7 @@ export default function IPO() {
 
       {filtered.length === 0 ? (
         <EmptyState
+          icon={<TrendingUp className="w-5 h-5" />}
           title="No IPOs tracked"
           hint="Add an upcoming IPO above to start tracking its GMP."
         />
@@ -222,56 +167,39 @@ export default function IPO() {
           {filtered.map((it) => {
             const d = daysUntil(it.open_date);
             return (
-              <li key={it.id} className="bg-white border border-slate-200 rounded-xl p-4">
-                <div className="flex items-start gap-3 flex-wrap">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-medium text-slate-900">{it.name}</span>
-                      <StatusPill value={it.status} />
-                      {it.price_band && (
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">
-                          {it.price_band}
-                        </span>
-                      )}
-                      {it.gmp && (
-                        <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
-                          GMP {it.gmp}
-                        </span>
+              <li key={it.id} className="animate-fade-up">
+                <Card padded={true} hover={false}>
+                  <div className="flex items-start gap-3 flex-wrap">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-base font-bold text-ink">{it.name}</span>
+                        <StatusBadge value={it.status} />
+                        {it.price_band && <Badge tone="slate" size="sm">{it.price_band}</Badge>}
+                        {it.gmp && <Badge tone="emerald" size="sm">GMP {it.gmp}</Badge>}
+                      </div>
+                      <div className="text-xs text-ink-faint mt-1.5 flex flex-wrap gap-x-3 gap-y-1">
+                        {it.open_date && <span>Opens <span className="text-ink-muted">{formatDate(it.open_date)}</span>{d != null && d > 0 && <span className="text-brand-600 dark:text-brand-300 ml-1">· in {d}d</span>}</span>}
+                        {it.close_date && <span>Closes <span className="text-ink-muted">{formatDate(it.close_date)}</span></span>}
+                        {it.listing_date && <span>Lists <span className="text-ink-muted">{formatDate(it.listing_date)}</span></span>}
+                      </div>
+                      {it.notes && <div className="text-sm text-ink-muted mt-2">{it.notes}</div>}
+                      {it.link && (
+                        <a href={it.link} target="_blank" rel="noreferrer"
+                           className="inline-flex items-center gap-1 text-xs text-brand-600 dark:text-brand-300 hover:underline mt-2">
+                          Open reference <ExternalLink className="w-3 h-3" />
+                        </a>
                       )}
                     </div>
-                    <div className="text-xs text-slate-500 mt-1 flex flex-wrap gap-x-3 gap-y-1">
-                      {it.open_date && <span>Opens {formatDate(it.open_date)}{d != null && d > 0 && ` (in ${d}d)`}</span>}
-                      {it.close_date && <span>Closes {formatDate(it.close_date)}</span>}
-                      {it.listing_date && <span>Lists {formatDate(it.listing_date)}</span>}
+                    <div className="flex items-center gap-1">
+                      <Button variant="ghost" size="sm" iconOnly onClick={() => startEdit(it)} aria-label="Edit">
+                        <Pencil className="w-3.5 h-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="sm" iconOnly onClick={() => remove(it.id)} aria-label="Delete">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
                     </div>
-                    {it.notes && <div className="text-sm text-slate-600 mt-2">{it.notes}</div>}
-                    {it.link && (
-                      <a
-                        href={it.link}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-xs text-brand-600 hover:underline mt-2 inline-block"
-                      >
-                        Open reference →
-                      </a>
-                    )}
                   </div>
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => startEdit(it)}
-                      className="text-slate-400 hover:text-slate-700 text-sm px-2"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => remove(it.id)}
-                      className="text-slate-400 hover:text-red-600 text-sm px-2"
-                      aria-label="Delete"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                </div>
+                </Card>
               </li>
             );
           })}
@@ -281,15 +209,10 @@ export default function IPO() {
   );
 }
 
-function StatusPill({ value }) {
-  const color =
-    value === 'Open' ? 'bg-emerald-100 text-emerald-700' :
-    value === 'Closed' ? 'bg-amber-100 text-amber-700' :
-    value === 'Listed' ? 'bg-blue-100 text-blue-700' :
-    'bg-slate-100 text-slate-600';
-  return (
-    <span className={'text-xs font-medium px-2 py-0.5 rounded-full ' + color}>
-      {value || 'Upcoming'}
-    </span>
-  );
+function StatusBadge({ value }) {
+  const tone =
+    value === 'Open' ? 'emerald' :
+    value === 'Closed' ? 'amber' :
+    value === 'Listed' ? 'sky' : 'slate';
+  return <Badge tone={tone} size="sm">{value || 'Upcoming'}</Badge>;
 }
