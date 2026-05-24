@@ -21,9 +21,17 @@ export default function Button({
     lg: iconOnly ? 'w-12 h-12 text-lg' : 'h-12 px-5 text-base',
   };
 
+  // Primary: gradient bg, white text. Adds a subtle inner highlight (via ring)
+  // plus a thin outer ring to give the button crisp edge definition in dark
+  // mode where it'd otherwise blend with the violet/blue ambient blobs.
+  // `shadow-[inset_0_1px_0_0_rgb(255_255_255/0.18)]` is the top-light highlight,
+  // mimicking the iOS pill-button sheen.
   const variants = {
     primary:
-      'bg-grad-brand text-white shadow-glow-brand hover:shadow-lg hover:brightness-110',
+      'bg-grad-brand text-white shadow-glow-brand hover:shadow-[0_8px_28px_-6px_rgb(59_109_255/0.6)] hover:brightness-110 ' +
+      'ring-1 ring-white/20 dark:ring-white/15 ' +
+      'shadow-[inset_0_1px_0_0_rgb(255_255_255/0.20)] ' +
+      'dark:shadow-[0_4px_18px_-6px_rgb(59_109_255/0.45),inset_0_1px_0_0_rgb(255_255_255/0.18)]',
     secondary:
       'glass glass-hover text-ink hover:shadow-glass-soft',
     ghost:

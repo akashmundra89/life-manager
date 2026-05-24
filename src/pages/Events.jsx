@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { CalendarDays, Plus, Pencil, Trash2, X as XIcon, Clock } from 'lucide-react';
 import PageHeader from '../components/PageHeader.jsx';
+import BackupMenu from '../components/BackupMenu.jsx';
 import { Card, CardHeader, Badge, badgeForDays, labelForDays, Button, EmptyState } from '../components/ui';
 import { Input, Label } from '../components/ui/Input.jsx';
 import useLocalCollection from '../hooks/useLocalCollection.js';
@@ -10,7 +11,7 @@ import { cx } from '../lib/cx.js';
 const empty = { title: '', date: '', time: '' };
 
 export default function Events() {
-  const { items, add, update, remove } = useLocalCollection('events', []);
+  const { items, add, update, remove, replaceAll } = useLocalCollection('events', []);
   const [form, setForm] = useState(empty);
   const [editingId, setEditingId] = useState(null);
 
@@ -62,6 +63,7 @@ export default function Events() {
         icon={<CalendarDays className="w-5 h-5" />}
         title="Upcoming events"
         subtitle="Things happening in the next few days."
+        action={<BackupMenu filenameBase="events" items={items} onReplaceAll={replaceAll} />}
       />
 
       <Card

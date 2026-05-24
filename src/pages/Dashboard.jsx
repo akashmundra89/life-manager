@@ -1,11 +1,13 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   AlertCircle, Clock, CheckCircle2, Wallet,
   CalendarDays, ShoppingCart, Briefcase, CalendarCheck, Star,
-  ArrowRight, Sparkles, Plus,
+  ArrowRight, Sparkles, Plus, Database,
 } from 'lucide-react';
 import PageHeader from '../components/PageHeader.jsx';
-import { Card, CardHeader, Stat, Badge, badgeForDays, labelForDays, ProgressRing, Button } from '../components/ui';
+import BackupAllMenu from '../components/BackupAllMenu.jsx';
+import { Card, CardHeader, Stat, Badge, badgeForDays, labelForDays, ProgressRing, Button, Modal } from '../components/ui';
 import useLocalCollection from '../hooks/useLocalCollection.js';
 import { useAuth } from '../contexts/AuthContext';
 import {
@@ -19,6 +21,8 @@ import { cx } from '../lib/cx.js';
 
 export default function Dashboard() {
   const auth = useAuth();
+  const navigate = useNavigate();
+  const [quickOpen, setQuickOpen] = useState(false);
   const grocery = useLocalCollection('grocery', []);
   const events = useLocalCollection('events', []);
   const office = useLocalCollection('office', []);
@@ -116,7 +120,7 @@ export default function Dashboard() {
         title={`${greeting}, ${niceName}`}
         subtitle={`${formatDate(new Date().toISOString())} · ${attentionPhrase(overdueCount, dueTodayCount)}`}
         action={
-          <Button variant="primary" size="md">
+          <Button variant="primary" size="md" onClick={() => setQuickOpen(true)}>
             <Plus className="w-4 h-4" /> Quick add
           </Button>
         }
@@ -288,9 +292,74 @@ export default function Dashboard() {
             ))}
           </div>
         </Card>
+
+        <Card className="md:col-span-2 xl:col-span-3 animate-fade-up [animation-delay:520ms]" hover={false}>
+          <CardHeader
+            icon={<Database className="w-4 h-4" />}
+            iconTone="violet"
+            title="Full backup"
+            subtitle="One Excel · 6 sheets · grocery, events, office, key dates, monthly, expenses."
+          />
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="text-sm text-ink-muted">
+              <span className="font-semibold text-ink">
+                {grocery.items.length + events.items.length + office.items.length + keyDates.items.length + monthly.items.length + expenses.items.length}
+              </span>{' '}
+              item{(grocery.items.length + events.items.length + office.items.length + keyDates.items.length + monthly.items.length + expenses.items.length) === 1 ? '' : 's'} across all tabs.
+              <span className="block text-xs text-ink-faint mt-0.5">
+                Download to back up locally. Upload to restore after a data issue.
+              </span>
+            </div>
+            <BackupAllMenu
+              collections={[
+                { key: 'grocery',   label: 'Grocery',   items: grocery.items,   replaceAll: grocery.replaceAll },
+                { key: 'events',    label: 'Events',    items: events.items,    replaceAll: events.replaceAll },
+                { key: 'office',    label: 'Office',    items: office.items,    replaceAll: office.replaceAll },
+                { key: 'keyDates',  label: 'Key dates', items: keyDates.items,  replaceAll: keyDates.replaceAll },
+                { key: 'monthly',   label: 'Monthly',   items: monthly.items,   replaceAll: monthly.replaceAll },
+                { key: 'expenses',  label: 'Expenses',  items: expenses.items,  replaceAll: expenses.replaceAll },
+              ]}
+            />
+          </div>
+        </Card>
       </div>
+
+      <Modal open={quickOpen} onClose={() => setQuickOpen(false)} title="Quick add" size="md">
+        <p className="text-sm text-ink-muted mb-4">What would you like to add?</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          {[
+            { to: '/grocery',  label: 'Grocery item', desc: 'Add to the shopping list.',   Icon: ShoppingCart,   tone: 'rose'    },
+            { to: '/events',   label: 'Event',        desc: 'Birthday, meeting, doctor…',  Icon: CalendarDays,   tone: 'indigo'  },
+            { to: '/office',   label: 'Task',         desc: 'Office work, follow-ups.',    Icon: Briefcase,      tone: 'amber'   },
+            { to: '/expenses', label: 'Expense',      desc: 'Log a transaction.',          Icon: Wallet,         tone: 'sky'     },
+          ].map(({ to, label, desc, Icon, tone }) => (
+            <button
+              key={to}
+              onClick={() => { setQuickOpen(false); navigate(to); }}
+              className="flex items-start gap-3 p-3 rounded-xl glass glass-hover hover:shadow-glass-soft text-left transition-all"
+            >
+              <div className={cx('grid place-items-center rounded-xl w-10 h-10 shrink-0', quickToneClass(tone))}>
+                <Icon className="w-4 h-4" />
+              </div>
+              <div>
+                <div className="text-sm font-semibold text-ink">{label}</div>
+                <div className="text-xs text-ink-faint mt-0.5">{desc}</div>
+              </div>
+            </button>
+          ))}
+        </div>
+      </Modal>
     </div>
   );
+}
+
+function quickToneClass(tone) {
+  return {
+    rose: 'bg-rose-500/15 text-rose-700 dark:text-rose-300',
+    indigo: 'bg-indigo-500/15 text-indigo-600 dark:text-indigo-300',
+    amber: 'bg-amber-500/15 text-amber-800 dark:text-amber-300',
+    sky: 'bg-sky-500/15 text-sky-700 dark:text-sky-300',
+  }[tone] || 'bg-slate-500/15 text-slate-700 dark:text-slate-300';
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────

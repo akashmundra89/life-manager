@@ -4,6 +4,7 @@ import {
   Circle, CircleDot, CheckCircle2,
 } from 'lucide-react';
 import PageHeader from '../components/PageHeader.jsx';
+import BackupMenu from '../components/BackupMenu.jsx';
 import { Card, CardHeader, Badge, Button, EmptyState } from '../components/ui';
 import { Input, Select, Label } from '../components/ui/Input.jsx';
 import useLocalCollection from '../hooks/useLocalCollection.js';
@@ -19,7 +20,7 @@ const empty = {
 };
 
 export default function Office() {
-  const { items, add, update, remove } = useLocalCollection('office', []);
+  const { items, add, update, remove, replaceAll } = useLocalCollection('office', []);
   const [form, setForm] = useState(empty);
   const [editingId, setEditingId] = useState(null);
   const [statusFilter, setStatusFilter] = useState('open');
@@ -79,6 +80,7 @@ export default function Office() {
         icon={<Briefcase className="w-5 h-5" />}
         title="Office work"
         subtitle="Track what's open, what's due, and what's done."
+        action={<BackupMenu filenameBase="office" items={items} onReplaceAll={replaceAll} />}
       />
 
       <Card

@@ -71,7 +71,7 @@ export default function IPO() {
           subtitle="No public IPO API has reliable real-time GMP — this is a manual tracker."
         />
         <div className="text-sm text-ink-muted space-y-1">
-          <a className="block text-brand-600 dark:text-brand-300 hover:underline" href="https://www.chittorgarh.com/ipo/ipo_gmp.asp" target="_blank" rel="noreferrer">→ Chittorgarh — IPO GMP</a>
+          <a className="block text-brand-600 dark:text-brand-300 hover:underline" href="https://www.investorgain.com/report/live-ipo-gmp/331/ipo/" target="_blank" rel="noreferrer">→ Live Mainboard IPO GMP | Grey Market Premium</a>
           <a className="block text-brand-600 dark:text-brand-300 hover:underline" href="https://ipowatch.in/ipo-grey-market-premium-latest-ipo-gmp/" target="_blank" rel="noreferrer">→ IPO Watch — Grey Market Premium</a>
           <a className="block text-brand-600 dark:text-brand-300 hover:underline" href="https://www.investorgain.com/ipo/" target="_blank" rel="noreferrer">→ InvestorGain — IPO Calendar</a>
         </div>

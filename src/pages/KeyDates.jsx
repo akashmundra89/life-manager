@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Star, Plus, Pencil, Trash2, X as XIcon, Heart, RotateCcw } from 'lucide-react';
 import PageHeader from '../components/PageHeader.jsx';
+import BackupMenu from '../components/BackupMenu.jsx';
 import { Card, CardHeader, Badge, Button, EmptyState, ProgressRing } from '../components/ui';
 import { Input, Select, Label } from '../components/ui/Input.jsx';
 import useLocalCollection from '../hooks/useLocalCollection.js';
@@ -15,7 +16,7 @@ const TYPES = [
 const empty = { title: '', date: '', type: 'memory', notes: '' };
 
 export default function KeyDates() {
-  const { items, add, update, remove } = useLocalCollection('keyDates', []);
+  const { items, add, update, remove, replaceAll } = useLocalCollection('keyDates', []);
   const [form, setForm] = useState(empty);
   const [editingId, setEditingId] = useState(null);
   const [typeFilter, setTypeFilter] = useState('all');
@@ -74,6 +75,7 @@ export default function KeyDates() {
         icon={<Star className="w-5 h-5" />}
         title="Key dates"
         subtitle="Memories you want to remember, and annual dates that come back every year."
+        action={<BackupMenu filenameBase="key-dates" items={items} onReplaceAll={replaceAll} />}
       />
 
       <Card
