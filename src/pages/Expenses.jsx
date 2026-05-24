@@ -8,6 +8,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
 } from 'recharts';
 import PageHeader from '../components/PageHeader.jsx';
+import BackupMenu from '../components/BackupMenu.jsx';
 import { Card, CardHeader, Stat, Badge, Button, EmptyState } from '../components/ui';
 import { Input, Select, Label } from '../components/ui/Input.jsx';
 import useLocalCollection from '../hooks/useLocalCollection.js';
@@ -48,7 +49,7 @@ const empty = {
 };
 
 export default function Expenses() {
-  const { items, add, update, remove } = useLocalCollection('expenses', []);
+  const { items, add, update, remove, replaceAll } = useLocalCollection('expenses', []);
   const [month, setMonth] = useState(currentMonthKey());
   const [form, setForm] = useState({ ...empty, date: todayISO() });
   const [editingId, setEditingId] = useState(null);
@@ -182,17 +183,20 @@ export default function Expenses() {
         title="Expenses"
         subtitle="Daily spending, monthly totals, where the money goes."
         action={
-          <div className="flex items-center gap-2">
-            <Button variant="secondary" size="sm" iconOnly onClick={() => setMonth(shiftMonth(month, -1))} aria-label="Previous month">
-              <ChevronLeft className="w-4 h-4" />
-            </Button>
-            <div className="glass rounded-xl px-3 py-1.5 text-sm font-semibold text-ink min-w-[160px] text-center">
-              {formatMonthKey(month)}
-              {isCurrent && <span className="ml-2 text-[10px] text-emerald-600 dark:text-emerald-400 font-bold uppercase tracking-wider">now</span>}
+          <div className="flex items-center gap-2 flex-wrap justify-end">
+            <div className="flex items-center gap-1">
+              <Button variant="secondary" size="sm" iconOnly onClick={() => setMonth(shiftMonth(month, -1))} aria-label="Previous month">
+                <ChevronLeft className="w-4 h-4" />
+              </Button>
+              <div className="glass rounded-xl px-3 py-1.5 text-sm font-semibold text-ink min-w-[150px] text-center">
+                {formatMonthKey(month)}
+                {isCurrent && <span className="ml-2 text-[10px] text-emerald-600 dark:text-emerald-400 font-bold uppercase tracking-wider">now</span>}
+              </div>
+              <Button variant="secondary" size="sm" iconOnly onClick={() => setMonth(shiftMonth(month, 1))} aria-label="Next month">
+                <ChevronRight className="w-4 h-4" />
+              </Button>
             </div>
-            <Button variant="secondary" size="sm" iconOnly onClick={() => setMonth(shiftMonth(month, 1))} aria-label="Next month">
-              <ChevronRight className="w-4 h-4" />
-            </Button>
+            <BackupMenu filenameBase="expenses" items={items} onReplaceAll={replaceAll} compact />
           </div>
         }
       />

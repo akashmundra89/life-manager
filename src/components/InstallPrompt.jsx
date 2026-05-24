@@ -1,22 +1,20 @@
 import { useEffect, useState } from 'react';
+import { X, Download, Share } from 'lucide-react';
 
 export default function InstallPrompt() {
-  const [prompt, setPrompt] = useState(null);   // Android/Chrome deferred prompt
+  const [prompt, setPrompt] = useState(null);
   const [isIOS, setIsIOS] = useState(false);
   const [dismissed, setDismissed] = useState(
     () => localStorage.getItem('pwa-install-dismissed') === 'true'
   );
 
   useEffect(() => {
-    // Already running as installed PWA
     if (window.matchMedia('(display-mode: standalone)').matches) return;
-    if (navigator.standalone) return; // iOS standalone
+    if (navigator.standalone) return;
 
-    // Android / Chrome — capture the browser's install prompt
     const handler = (e) => { e.preventDefault(); setPrompt(e); };
     window.addEventListener('beforeinstallprompt', handler);
 
-    // iOS Safari doesn't fire beforeinstallprompt — detect manually
     const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) && !('MSStream' in window);
     setIsIOS(ios);
 
@@ -40,40 +38,38 @@ export default function InstallPrompt() {
   if (!prompt && !isIOS) return null;
 
   return (
-    <div className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-4 sm:w-80 z-50 animate-fade-in">
-      <div className="bg-slate-900 text-white rounded-2xl p-4 shadow-2xl">
+    <div className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-4 sm:w-80 z-50 animate-fade-up">
+      <div className="glass-strong rounded-2xl p-4 shadow-glass border border-edge/10">
         <div className="flex items-start gap-3">
-          <img src="/icon-192.png" alt="" className="w-10 h-10 rounded-xl shrink-0" />
+          <img src="/icon-192.png" alt="" className="w-10 h-10 rounded-xl shrink-0 shadow-glow-brand" />
           <div className="flex-1 min-w-0">
-            <div className="font-semibold text-sm">Add to Home Screen</div>
+            <div className="font-semibold text-sm text-ink">Add to home screen</div>
             {isIOS && !prompt ? (
-              <p className="text-xs text-slate-300 mt-0.5">
-                Tap the <strong>Share</strong> button in Safari, then{' '}
-                <strong>Add to Home Screen</strong>.
+              <p className="text-xs text-ink-faint mt-0.5 inline-flex items-center gap-1 flex-wrap">
+                Tap <Share className="w-3 h-3 inline" /> <strong className="text-ink">Share</strong>, then{' '}
+                <strong className="text-ink">Add to Home Screen</strong>.
               </p>
             ) : (
-              <p className="text-xs text-slate-300 mt-0.5">
+              <p className="text-xs text-ink-faint mt-0.5">
                 Install for one-tap access and offline support.
               </p>
             )}
           </div>
           <button
             onClick={dismiss}
-            className="text-slate-400 hover:text-white transition-colors p-0.5 shrink-0"
+            className="text-ink-faint hover:text-ink transition-colors p-1 rounded-lg hover:bg-surface-strong/60 shrink-0"
             aria-label="Dismiss"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            <X className="w-4 h-4" />
           </button>
         </div>
 
         {prompt && (
           <button
             onClick={install}
-            className="mt-3 w-full py-2 bg-brand-500 hover:bg-brand-600 rounded-xl text-sm font-medium transition-colors"
+            className="mt-3 w-full inline-flex items-center justify-center gap-2 py-2.5 bg-grad-brand text-white rounded-xl text-sm font-semibold shadow-glow-brand hover:brightness-110 transition-all"
           >
-            Install app
+            <Download className="w-4 h-4" /> Install app
           </button>
         )}
       </div>

@@ -14,7 +14,7 @@ export default defineConfig({
         short_name: 'Life Manager',
         description: 'Your daily command center — grocery, events, expenses, and more.',
         theme_color: '#3b6dff',
-        background_color: '#f8fafc',
+        background_color: '#eef2ff',
         display: 'standalone',
         orientation: 'any',
         scope: '/',
@@ -31,7 +31,6 @@ export default defineConfig({
         navigateFallback: '/index.html',
         runtimeCaching: [
           {
-            // Supabase API: network-first, fall back to cache
             urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
             handler: 'NetworkFirst',
             options: {
@@ -44,6 +43,20 @@ export default defineConfig({
       },
     }),
   ],
+  build: {
+    rollupOptions: {
+      output: {
+        // Split heavy vendor libs so the initial bundle stays small.
+        manualChunks: {
+          react: ['react', 'react-dom', 'react-router-dom'],
+          recharts: ['recharts'],
+          lucide: ['lucide-react'],
+          supabase: ['@supabase/supabase-js'],
+        },
+      },
+    },
+    chunkSizeWarningLimit: 600,
+  },
   server: {
     port: 5173,
     open: true,

@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { ShoppingCart, Plus, Pencil, Trash2, X as XIcon, Check } from 'lucide-react';
 import PageHeader from '../components/PageHeader.jsx';
+import BackupMenu from '../components/BackupMenu.jsx';
 import { Card, CardHeader, Badge, Button, EmptyState } from '../components/ui';
 import { Input, Select, Label } from '../components/ui/Input.jsx';
 import useLocalCollection from '../hooks/useLocalCollection.js';
@@ -23,7 +24,7 @@ const SEED = [
 const empty = { name: '', qty: '', category: 'Other', priority: 'Medium', notes: '' };
 
 export default function Grocery() {
-  const { items, add, update, remove } = useLocalCollection('grocery', SEED);
+  const { items, add, update, remove, replaceAll } = useLocalCollection('grocery', SEED);
   const [form, setForm] = useState(empty);
   const [editingId, setEditingId] = useState(null);
   const [filter, setFilter] = useState('all');
@@ -82,6 +83,7 @@ export default function Grocery() {
         icon={<ShoppingCart className="w-5 h-5" />}
         title="Grocery list"
         subtitle="What needs to be picked up next."
+        action={<BackupMenu filenameBase="grocery" items={items} onReplaceAll={replaceAll} />}
       />
 
       <Card
