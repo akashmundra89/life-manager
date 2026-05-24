@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, ShoppingCart, CalendarDays, Briefcase, Star, CalendarCheck,
-  Wallet, TrendingUp, Newspaper, Trophy, Sparkles, X as XIcon,
+  Wallet, TrendingUp, Newspaper, Trophy, Sparkles, X as XIcon, Users, Award,
   Sun, Moon, LogOut,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -22,6 +22,10 @@ const SECTIONS = [
     { to: '/key-dates', label: 'Key dates',  Icon: Star },
     { to: '/monthly',   label: 'Monthly',    Icon: CalendarCheck },
     { to: '/expenses',  label: 'Expenses',   Icon: Wallet },
+  ]},
+  { label: 'Memories', items: [
+    { to: '/achievements', label: 'Achievements', Icon: Award },
+    { to: '/people',       label: 'Family',       Icon: Users },
   ]},
   { label: 'Discover', items: [
     { to: '/ipo',       label: 'IPOs',       Icon: TrendingUp },

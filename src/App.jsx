@@ -18,6 +18,8 @@ const IPO      = lazy(() => import('./pages/IPO.jsx'));
 const News     = lazy(() => import('./pages/News.jsx'));
 const Cricket  = lazy(() => import('./pages/Cricket.jsx'));
 const Expenses = lazy(() => import('./pages/Expenses.jsx'));  // pulls in recharts
+const Achievements = lazy(() => import('./pages/Achievements.jsx'));
+const People = lazy(() => import('./pages/People.jsx'));
 
 function RouteFallback() {
   return (
@@ -46,6 +48,8 @@ function AnimatedRoutes() {
           <Route path="/ipo" element={<IPO />} />
           <Route path="/news" element={<News />} />
           <Route path="/cricket" element={<Cricket />} />
+          <Route path="/achievements" element={<Achievements />} />
+          <Route path="/people" element={<People />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>
