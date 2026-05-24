@@ -3,12 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import {
   AlertCircle, Clock, CheckCircle2, Wallet,
   CalendarDays, ShoppingCart, Briefcase, CalendarCheck, Star,
-  ArrowRight, Sparkles, Plus, Database,
+  ArrowRight, Sparkles, Plus, Database, Trophy,
 } from 'lucide-react';
 import PageHeader from '../components/PageHeader.jsx';
 import BackupAllMenu from '../components/BackupAllMenu.jsx';
 import { Card, CardHeader, Stat, Badge, badgeForDays, labelForDays, ProgressRing, Button, Modal } from '../components/ui';
 import useLocalCollection from '../hooks/useLocalCollection.js';
+import { onThisDay } from '../lib/achievements.js';
 import { useAuth } from '../contexts/AuthContext';
 import {
   formatDate,
@@ -29,6 +30,8 @@ export default function Dashboard() {
   const keyDates = useLocalCollection('keyDates', []);
   const monthly = useLocalCollection('monthly', []);
   const expenses = useLocalCollection('expenses', []);
+  const achievements = useLocalCollection('achievements', []);
+  const people = useLocalCollection('people', []);
 
   const month = currentMonthKey();
   const firstName = (auth?.user?.email?.split('@')[0] || 'Akash').replace(/[._-]/g, ' ').split(' ')[0];
@@ -111,6 +114,13 @@ export default function Dashboard() {
       .reduce((s, i) => s + (Number(i.amount) || 0), 0);
     return total;
   }, [expenses.items, month]);
+
+  const onThisDayItems = useMemo(() => onThisDay(achievements.items).slice(0, 5), [achievements.items]);
+  const personColor = useMemo(() => {
+    const m = {};
+    for (const p of people.items) m[(p.name || '').toLowerCase()] = p.color;
+    return (name) => m[(name || '').toLowerCase()] || '#9b6bff';
+  }, [people.items]);
 
   // ── Render ───────────────────────────────────────────────────────────────
   return (
@@ -293,31 +303,67 @@ export default function Dashboard() {
           </div>
         </Card>
 
+        {onThisDayItems.length > 0 && (
+          <Card to="/achievements" className="md:col-span-2 xl:col-span-3 animate-fade-up [animation-delay:500ms]" hover={true}>
+            <CardHeader
+              icon={<Trophy className="w-4 h-4" />}
+              iconTone="violet"
+              title="On this day"
+              subtitle="Achievements that happened today, in past years."
+              action={<Badge tone="violet">{onThisDayItems.length}</Badge>}
+            />
+            <ul className="space-y-2.5">
+              {onThisDayItems.map((a) => {
+                const color = personColor(a.person);
+                return (
+                  <li key={a.id} className="flex items-start gap-3">
+                    <div
+                      className="w-9 h-9 rounded-xl grid place-items-center text-white text-xs font-bold shrink-0"
+                      style={{ background: color }}
+                    >
+                      {a._yearsAgo}y
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-semibold text-ink truncate">{a.title}</div>
+                      <div className="text-xs text-ink-faint">
+                        {a.person ? <span style={{ color }}>{a.person}</span> : 'Family'} · {a._yearsAgo} {a._yearsAgo === 1 ? 'year' : 'years'} ago
+                        {a.category && <span> · {a.category}</span>}
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </Card>
+        )}
+
         <Card className="md:col-span-2 xl:col-span-3 animate-fade-up [animation-delay:520ms]" hover={false}>
           <CardHeader
             icon={<Database className="w-4 h-4" />}
             iconTone="violet"
             title="Full backup"
-            subtitle="One Excel · 6 sheets · grocery, events, office, key dates, monthly, expenses."
+            subtitle="One Excel · 8 sheets · grocery, events, office, key dates, monthly, expenses, family, achievements."
           />
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <div className="text-sm text-ink-muted">
               <span className="font-semibold text-ink">
-                {grocery.items.length + events.items.length + office.items.length + keyDates.items.length + monthly.items.length + expenses.items.length}
+                {grocery.items.length + events.items.length + office.items.length + keyDates.items.length + monthly.items.length + expenses.items.length + people.items.length + achievements.items.length}
               </span>{' '}
-              item{(grocery.items.length + events.items.length + office.items.length + keyDates.items.length + monthly.items.length + expenses.items.length) === 1 ? '' : 's'} across all tabs.
+              item{(grocery.items.length + events.items.length + office.items.length + keyDates.items.length + monthly.items.length + expenses.items.length + people.items.length + achievements.items.length) === 1 ? '' : 's'} across all tabs.
               <span className="block text-xs text-ink-faint mt-0.5">
                 Download to back up locally. Upload to restore after a data issue.
               </span>
             </div>
             <BackupAllMenu
               collections={[
-                { key: 'grocery',   label: 'Grocery',   items: grocery.items,   replaceAll: grocery.replaceAll },
-                { key: 'events',    label: 'Events',    items: events.items,    replaceAll: events.replaceAll },
-                { key: 'office',    label: 'Office',    items: office.items,    replaceAll: office.replaceAll },
-                { key: 'keyDates',  label: 'Key dates', items: keyDates.items,  replaceAll: keyDates.replaceAll },
-                { key: 'monthly',   label: 'Monthly',   items: monthly.items,   replaceAll: monthly.replaceAll },
-                { key: 'expenses',  label: 'Expenses',  items: expenses.items,  replaceAll: expenses.replaceAll },
+                { key: 'grocery',      label: 'Grocery',      items: grocery.items,      replaceAll: grocery.replaceAll },
+                { key: 'events',       label: 'Events',       items: events.items,       replaceAll: events.replaceAll },
+                { key: 'office',       label: 'Office',       items: office.items,       replaceAll: office.replaceAll },
+                { key: 'keyDates',     label: 'Key dates',    items: keyDates.items,     replaceAll: keyDates.replaceAll },
+                { key: 'monthly',      label: 'Monthly',      items: monthly.items,      replaceAll: monthly.replaceAll },
+                { key: 'expenses',     label: 'Expenses',     items: expenses.items,     replaceAll: expenses.replaceAll },
+                { key: 'people',       label: 'Family',       items: people.items,       replaceAll: people.replaceAll },
+                { key: 'achievements', label: 'Achievements', items: achievements.items, replaceAll: achievements.replaceAll },
               ]}
             />
           </div>

@@ -113,6 +113,41 @@ alter table ipos enable row level security;
 create policy "ipos: own rows" on ipos
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
+-- ── people ────────────────────────────────────────────────────────────────────
+create table if not exists people (
+  id           uuid primary key default gen_random_uuid(),
+  user_id      uuid references auth.users(id) on delete cascade not null,
+  name         text not null,
+  dob          text,
+  role         text,
+  color        text,
+  created_at   timestamptz default now()
+);
+alter table people enable row level security;
+create policy "people: own rows" on people
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- ── achievements ──────────────────────────────────────────────────────────────
+create table if not exists achievements (
+  id            uuid primary key default gen_random_uuid(),
+  user_id       uuid references auth.users(id) on delete cascade not null,
+  person        text,
+  date          text,
+  title         text not null,
+  description   text,
+  category      text,
+  tier          text,
+  grade_level   text,
+  issuer        text,
+  photo_url     text,
+  tags          text[],
+  quote         text,
+  created_at    timestamptz default now()
+);
+alter table achievements enable row level security;
+create policy "achievements: own rows" on achievements
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
 -- ── Enable realtime for all tables ───────────────────────────────────────────
 -- Run this after creating tables so the app receives live updates.
 alter publication supabase_realtime add table grocery;
@@ -122,3 +157,5 @@ alter publication supabase_realtime add table key_dates;
 alter publication supabase_realtime add table monthly;
 alter publication supabase_realtime add table expenses;
 alter publication supabase_realtime add table ipos;
+alter publication supabase_realtime add table people;
+alter publication supabase_realtime add table achievements;
