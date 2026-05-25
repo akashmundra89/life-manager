@@ -1,9 +1,27 @@
+/// <reference types="vitest" />
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig({
   base: '/',
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: ['./vitest.setup.js'],
+    css: false,
+    include: ['src/**/*.{test,spec}.{js,jsx}'],
+    // Run in a single fork — jsdom + fake-indexeddb don't share cleanly across
+    // parallel workers, which manifests as flaky "empty <body />" failures.
+    pool: 'forks',
+    poolOptions: { forks: { singleFork: true } },
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'html'],
+      include: ['src/**/*.{js,jsx}'],
+      exclude: ['src/**/*.test.*', 'src/main.jsx'],
+    },
+  },
   plugins: [
     react(),
     VitePWA({
