@@ -4,7 +4,11 @@ import { useAuth } from '../contexts/AuthContext';
 import { idbGet, idbSet } from '../lib/idb';
 
 // Collection keys that differ from their Supabase table names
-const TABLE_MAP = { keyDates: 'key_dates' };
+const TABLE_MAP = {
+  keyDates: 'key_dates',
+  vacationPlans: 'vacation_plans',
+  placesVisited: 'places_visited',
+};
 const toTable = (key) => TABLE_MAP[key] ?? key;
 
 // ── localStorage fallback (no Supabase configured) ───────────────────────────
@@ -111,7 +115,7 @@ function useSupabaseImpl(key, user) {
       });
 
     const channel = supabase
-      .channel(`${table}:${user.id}`)
+      .channel(`${table}:${user.id}:${crypto.randomUUID()}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table, filter: `user_id=eq.${user.id}` },

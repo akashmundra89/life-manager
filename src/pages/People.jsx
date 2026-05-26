@@ -127,7 +127,7 @@ export default function People() {
           {items.map((p) => {
             const age = ageFromDob(p.dob);
             return (
-              <li key={p.id} className="animate-fade-up">
+              <li key={p.id} data-focus-id={p.id} className="animate-fade-up">
                 <Card padded={true} hover={false} className="h-full">
                   <div className="flex items-start gap-3">
                     <div

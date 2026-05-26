@@ -167,7 +167,7 @@ export default function IPO() {
           {filtered.map((it) => {
             const d = daysUntil(it.open_date);
             return (
-              <li key={it.id} className="animate-fade-up">
+              <li key={it.id} data-focus-id={it.id} className="animate-fade-up">
                 <Card padded={true} hover={false}>
                   <div className="flex items-start gap-3 flex-wrap">
                     <div className="flex-1 min-w-0">

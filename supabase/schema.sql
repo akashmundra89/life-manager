@@ -158,6 +158,43 @@ drop policy if exists "achievements: own rows" on achievements;
 create policy "achievements: own rows" on achievements
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
+-- ── vacation_plans ───────────────────────────────────────────────────────────
+create table if not exists vacation_plans (
+  id           uuid primary key default gen_random_uuid(),
+  user_id      uuid references auth.users(id) on delete cascade not null,
+  destination  text not null,
+  country      text,
+  start_date   text,
+  end_date     text,
+  budget       numeric,
+  companions   text,
+  status       text,
+  notes        text,
+  created_at   timestamptz default now()
+);
+alter table vacation_plans enable row level security;
+drop policy if exists "vacation_plans: own rows" on vacation_plans;
+create policy "vacation_plans: own rows" on vacation_plans
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- ── places_visited ───────────────────────────────────────────────────────────
+create table if not exists places_visited (
+  id            uuid primary key default gen_random_uuid(),
+  user_id       uuid references auth.users(id) on delete cascade not null,
+  place         text not null,
+  country       text,
+  visited_date  text,
+  companions    text,
+  rating        integer,
+  would_return  text,
+  notes         text,
+  created_at    timestamptz default now()
+);
+alter table places_visited enable row level security;
+drop policy if exists "places_visited: own rows" on places_visited;
+create policy "places_visited: own rows" on places_visited
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
 -- ── push_subscriptions ───────────────────────────────────────────────────────
 -- One row per device/browser the user has opted in for reminders from.
 -- The Edge Function `daily-reminders` reads this table each morning.
@@ -184,7 +221,8 @@ declare t text;
 begin
   foreach t in array array[
     'grocery','events','office','key_dates','monthly',
-    'expenses','ipos','people','achievements','push_subscriptions'
+    'expenses','ipos','people','achievements',
+    'vacation_plans','places_visited','push_subscriptions'
   ]
   loop
     begin

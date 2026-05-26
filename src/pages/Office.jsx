@@ -175,7 +175,7 @@ export default function Office() {
             const soon = d != null && d >= 0 && d <= 2 && !isDone;
             const edge = overdue ? 'rose' : soon ? 'amber' : isDone ? 'emerald' : 'slate';
             return (
-              <li key={it.id} className="animate-fade-up">
+              <li key={it.id} data-focus-id={it.id} className="animate-fade-up">
                 <Card padded={false} hover={false} className="overflow-hidden">
                   <div className="flex">
                     {/* Left status edge */}

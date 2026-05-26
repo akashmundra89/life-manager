@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Menu, Sparkles } from 'lucide-react';
 import { useAuth } from './contexts/AuthContext';
@@ -7,6 +7,7 @@ import Sidebar from './components/Sidebar.jsx';
 import InstallPrompt from './components/InstallPrompt.jsx';
 import Login from './pages/Login.jsx';
 import Dashboard from './pages/Dashboard.jsx';
+import useFocusFromQuery from './lib/useFocusFromQuery.js';
 
 // Lazy-loaded — heavier and not needed for first paint.
 const Grocery  = lazy(() => import('./pages/Grocery.jsx'));
@@ -20,6 +21,8 @@ const Cricket  = lazy(() => import('./pages/Cricket.jsx'));
 const Expenses = lazy(() => import('./pages/Expenses.jsx'));  // pulls in recharts
 const Achievements = lazy(() => import('./pages/Achievements.jsx'));
 const People = lazy(() => import('./pages/People.jsx'));
+const VacationPlanning = lazy(() => import('./pages/VacationPlanning.jsx'));
+const PlacesVisited = lazy(() => import('./pages/PlacesVisited.jsx'));
 
 function RouteFallback() {
   return (
@@ -32,10 +35,12 @@ function RouteFallback() {
 }
 
 function AnimatedRoutes() {
-  // Re-mount Routes on path change so the page slot re-runs its enter animation.
   const location = useLocation();
+  // Strip query string from the animation key so navigating with ?focus=
+  // doesn't re-mount the page (which would lose the highlight target).
+  const animationKey = location.pathname;
   return (
-    <div key={location.pathname} className="animate-fade-in">
+    <div key={animationKey} className="animate-fade-in">
       <Suspense fallback={<RouteFallback />}>
         <Routes location={location}>
           <Route path="/" element={<Dashboard />} />
@@ -50,6 +55,8 @@ function AnimatedRoutes() {
           <Route path="/cricket" element={<Cricket />} />
           <Route path="/achievements" element={<Achievements />} />
           <Route path="/people" element={<People />} />
+          <Route path="/vacation-planning" element={<VacationPlanning />} />
+          <Route path="/places-visited" element={<PlacesVisited />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>
@@ -60,6 +67,29 @@ function AnimatedRoutes() {
 export default function App() {
   const { user, loading, guestMode } = useAuth() ?? {};
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Scroll-to and highlight the row referenced by `?focus=...` after the
+  // global search bar navigates to it.
+  useFocusFromQuery();
+
+  // Cmd/Ctrl+K from anywhere focuses the sidebar's global search input.
+  useEffect(() => {
+    function onKey(e) {
+      if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) {
+        const el = document.getElementById('global-search-input');
+        if (el) {
+          e.preventDefault();
+          el.focus();
+          el.select?.();
+          // On mobile, the sidebar is closed by default — open it so the
+          // input is actually visible.
+          setSidebarOpen(true);
+        }
+      }
+    }
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, []);
 
   if (loading) {
     return (

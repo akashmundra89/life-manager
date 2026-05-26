@@ -342,7 +342,7 @@ function AchievementCard({ a, colorForPerson, onEdit, onDelete }) {
   const tone = CATEGORY_TONE[a.category] || 'slate';
   const color = colorForPerson(a.person);
   return (
-    <Card padded={false} hover={false} className="overflow-hidden">
+    <Card padded={false} hover={false} data-focus-id={a.id} className="overflow-hidden">
       <div className="flex">
         <div className="w-1 self-stretch shrink-0" style={{ background: color }} />
         <div className="flex-1 p-4">

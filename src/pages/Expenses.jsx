@@ -459,7 +459,7 @@ export default function Expenses() {
                 <Card padded={false} hover={false}>
                   <ul className="divide-y divide-edge/5">
                     {list.map((it) => (
-                      <li key={it.id} className="flex items-start gap-3 px-4 py-3 hover:bg-surface-strong/30 transition-colors">
+                      <li key={it.id} data-focus-id={it.id} className="flex items-start gap-3 px-4 py-3 hover:bg-surface-strong/30 transition-colors">
                         <div
                           className="w-1 self-stretch rounded-full shrink-0"
                           style={{ background: CAT_COLOR[it.category] || CAT_COLOR.Other }}
