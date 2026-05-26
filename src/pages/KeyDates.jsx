@@ -160,7 +160,7 @@ export default function KeyDates() {
               ? Math.max(0, Math.min(100, Math.round(((365 - daysToNext) / 365) * 100)))
               : null;
             return (
-              <li key={it.id} className="animate-fade-up">
+              <li key={it.id} className="animate-fade-up" data-focus-id={it.id}>
                 <Card padded={true} hover={false} className="h-full">
                   <div className="flex items-start gap-4">
                     {recurring ? (

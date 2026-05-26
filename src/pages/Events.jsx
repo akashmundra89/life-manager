@@ -147,7 +147,7 @@ export default function Events() {
 function EventRow({ item, onEdit, onDelete, dim = false }) {
   const d = daysUntil(item.date);
   return (
-    <li className={cx('flex items-center gap-3 px-4 py-3 hover:bg-surface-strong/30 transition-colors', dim && 'opacity-60')}>
+    <li data-focus-id={item.id} className={cx('flex items-center gap-3 px-4 py-3 hover:bg-surface-strong/30 transition-colors', dim && 'opacity-60')}>
       <DateChip iso={item.date} />
       <div className="flex-1 min-w-0">
         <div className={cx('text-sm font-semibold truncate', dim && 'line-through')}>{item.title}</div>

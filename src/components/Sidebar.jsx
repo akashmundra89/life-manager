@@ -2,12 +2,13 @@ import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, ShoppingCart, CalendarDays, Briefcase, Star, CalendarCheck,
   Wallet, TrendingUp, Newspaper, Trophy, Sparkles, X as XIcon, Users, Award,
-  Sun, Moon, LogOut,
+  Sun, Moon, LogOut, Plane, Globe2,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { cx } from '../lib/cx.js';
+import GlobalSearch from './GlobalSearch.jsx';
 
 const SECTIONS = [
   { label: 'Overview', items: [
@@ -26,6 +27,10 @@ const SECTIONS = [
   { label: 'Memories', items: [
     { to: '/achievements', label: 'Achievements', Icon: Award },
     { to: '/people',       label: 'Family',       Icon: Users },
+    { to: '/places-visited', label: 'Places visited', Icon: Globe2 },
+  ]},
+  { label: 'Travel', items: [
+    { to: '/vacation-planning', label: 'Vacation planning', Icon: Plane },
   ]},
   { label: 'Discover', items: [
     { to: '/ipo',       label: 'IPOs',       Icon: TrendingUp },
@@ -70,6 +75,11 @@ export default function Sidebar({ open, onClose }) {
         >
           <XIcon className="w-4 h-4" />
         </button>
+      </div>
+
+      {/* Global search — also focusable via Cmd/Ctrl+K from anywhere. */}
+      <div className="px-3 pt-3 pb-1">
+        <GlobalSearch onResultClick={onClose} />
       </div>
 
       <nav className="flex-1 px-3 py-3 overflow-y-auto">

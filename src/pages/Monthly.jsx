@@ -188,7 +188,7 @@ export default function Monthly() {
               const overdue = d != null && d < 0 && !it.done;
               const soon = d != null && d >= 0 && d <= 3 && !it.done;
               return (
-                <li key={it.id} className="flex items-center gap-3 px-4 py-3 hover:bg-surface-strong/30 transition-colors">
+                <li key={it.id} data-focus-id={it.id} className="flex items-center gap-3 px-4 py-3 hover:bg-surface-strong/30 transition-colors">
                   <Checkbox checked={!!it.done} onChange={(v) => update(it.id, { done: v })} />
                   <div className="flex-1 min-w-0">
                     <div className={cx('text-sm font-semibold', it.done ? 'line-through text-ink-faint' : 'text-ink')}>
