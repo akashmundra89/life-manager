@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import PageHeader from '../components/PageHeader.jsx';
 import BackupAllMenu from '../components/BackupAllMenu.jsx';
+import ReminderToggle from '../components/ReminderToggle.jsx';
 import { Card, CardHeader, Stat, Badge, badgeForDays, labelForDays, ProgressRing, Button, Modal } from '../components/ui';
 import useLocalCollection from '../hooks/useLocalCollection.js';
 import { onThisDay } from '../lib/achievements.js';
@@ -135,6 +136,11 @@ export default function Dashboard() {
           </Button>
         }
       />
+
+      {/* REMINDER OPT-IN */}
+      <div className="mb-5 sm:mb-6">
+        <ReminderToggle />
+      </div>
 
       {/* STAT STRIP */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-5 sm:mb-6">
